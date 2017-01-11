@@ -1,2 +1,2 @@
 # ng2-meditorbf
-MediumEditor angular2 version, forked ng2-meditor
+MediumEditor for angular2 applications. (with ng2-meditor fork)

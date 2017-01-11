@@ -1,0 +1,24 @@
+{
+  "name": "ng2-meditorbf",
+  "version": "0.0.1",
+  "description": "MediumEditor for angular2 applications. (with ng2-meditor fork)",
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "author": {
+    "name": "Zoltán Balog",
+    "email": "zoltan.balog@appo.io"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zoltanbalog/ng2-meditorbf.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zoltanbalog/ng2-meditorbf/issues"
+  },
+  "tags": [
+    "medium-editor",
+    "ng2-meditor",
+    "angular2",
+    "typescript"
+  ]
+}

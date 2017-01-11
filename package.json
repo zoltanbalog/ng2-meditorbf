@@ -16,8 +16,7 @@
     "url": "https://github.com/zoltanbalog/ng2-meditorbf/issues"
   },
   "dependencies": {
-    "medium-editor": "^5.22.1",
-
+    "medium-editor": "^5.22.1"
   },
   "tags": [
     "medium-editor",

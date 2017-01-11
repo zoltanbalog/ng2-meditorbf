@@ -1,6 +1,6 @@
 {
   "name": "ng2-meditorbf",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "MediumEditor for angular2 applications. (with ng2-meditor fork)",
   "license": "MIT",
   "readmeFilename": "README.md",
@@ -14,6 +14,10 @@
   },
   "bugs": {
     "url": "https://github.com/zoltanbalog/ng2-meditorbf/issues"
+  },
+  "dependencies": {
+    "medium-editor": "^5.22.1",
+
   },
   "tags": [
     "medium-editor",

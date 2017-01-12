@@ -1,6 +1,7 @@
 import { Component, Input, forwardRef, ElementRef, ViewChild, OnChanges, OnInit, OnDestroy, ViewEncapsulation, Output, EventEmitter } from '@angular/core';
 import * as MediumEditor from './src/MediumEditor/js/medium-editor';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { HeadingExtension } from "./src/Extension/heading-extension";
 
 @Component({
     selector: 'medium-editor',
@@ -41,6 +42,9 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
                 placeholder: { text: this.placeholder }
             });
         }
+
+        this.setExtensions();
+
         this.editor = new MediumEditor(this.host.nativeElement, this.options);
 
         this.registerEventListeners();
@@ -70,6 +74,19 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         this.editor.subscribe('editableClick', (data: any, element: any) => {
             this.clickEvent.emit({'event': data, 'target': element});
         });
+    }
+
+    setExtensions() {
+        console.log(this.options);
+        if (!this.options || !this.options.toolbar || !this.options.toolbar.buttons) {
+            return;
+        }
+        for (let i = 0; i < this.options.toolbar.buttons.length; i++) {
+            if (this.options.toolbar.buttons[i] === 'headingExtension' && this.options.extensions) {
+                let headingExtensionService = new HeadingExtension();
+                this.options.extensions['headingExtension'] = headingExtensionService.getHeadingExtension();
+            }
+        }
     }
 
     writeValue(value: any) {

@@ -1,6 +1,8 @@
 import { Component, Input, forwardRef, ElementRef, ViewChild, OnChanges, OnInit, OnDestroy } from '@angular/core';
-import * as MediumEditor from 'medium-editor/dist/js/medium-editor';
+import * as MediumEditor from './src/MediumEditor/js/medium-editor';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+
+// const MediumEditor = require('./src/MediumEditor/js/medium-editor.js');
 
 @Component({
     selector: 'medium-editor',
@@ -9,7 +11,11 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
         useExisting: forwardRef(() => MediumEditorComponent),
         multi: true
     }],
-    template: `<div #host></div>`
+    template: `<div #host></div>`,
+    styleUrls: [
+        './src/MediumEditor/css/font-awesome.min.css',
+        './src/MediumEditor/css/medium-editor.css',
+    ]
 })
 export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDestroy, OnChanges {
     @Input() options: any;

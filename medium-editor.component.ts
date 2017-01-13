@@ -4,6 +4,8 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 import { HeadingExtension } from "./src/Extension/heading-extension";
 import { ColorPickerExtension } from "./src/Extension/color-picker.extension";
+import { CleanFormatExtension } from "./src/Extension/clean-format-extension";
+import { DividerExtension } from "./src/Extension/divider.extension";
 
 @Component({
     selector: 'medium-editor',
@@ -90,6 +92,13 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             } else if (this.options.toolbar.buttons[i] === 'colorPicker' && this.options.extensions) {
                 let colorPickerExtensionService = new ColorPickerExtension();
                 this.options.extensions['colorPicker'] = colorPickerExtensionService.getPickerExtension();
+            } else if (this.options.toolbar.buttons[i] === 'cleanFormatExtension' && this.options.extensions && "cleanFormatExtension" in this.options.extensions) {
+                let cleanFormatExtensionService = new CleanFormatExtension();
+                cleanFormatExtensionService.setCleanupAttrs(this.options.extensions['cleanFormatExtension']);
+                this.options.extensions['cleanFormatExtension'] = cleanFormatExtensionService.getCleanFormatExtension();
+            } else if ((typeof this.options.toolbar.buttons[i]) == 'string' && this.options.toolbar.buttons[i].startsWith('dividerExtension') && this.options.extensions) {
+                let dividerExtensionService = new DividerExtension();
+                this.options.extensions[this.options.toolbar.buttons[i]] = dividerExtensionService.getDividerExtension();
             }
         }
     }

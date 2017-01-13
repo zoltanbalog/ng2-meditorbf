@@ -1,7 +1,6 @@
 import { Injectable }    from '@angular/core';
 
-// import * as MediumEditor from 'medium-editor/dist/js/medium-editor';
-import * as MediumEditor from 'ng2-meditorbf/src/MediumEditor/js/medium-editor';
+import * as MediumEditor from '../MediumEditor/js/medium-editor';
 
 @Injectable()
 export class HeadingExtension {

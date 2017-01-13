@@ -1,7 +1,9 @@
 import { Component, Input, forwardRef, ElementRef, ViewChild, OnChanges, OnInit, OnDestroy, ViewEncapsulation, Output, EventEmitter } from '@angular/core';
 import * as MediumEditor from './src/MediumEditor/js/medium-editor';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+
 import { HeadingExtension } from "./src/Extension/heading-extension";
+import { ColorPickerExtension } from "./src/Extension/color-picker.extension";
 
 @Component({
     selector: 'medium-editor',
@@ -85,6 +87,9 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             if (this.options.toolbar.buttons[i] === 'headingExtension' && this.options.extensions) {
                 let headingExtensionService = new HeadingExtension();
                 this.options.extensions['headingExtension'] = headingExtensionService.getHeadingExtension();
+            } else if (this.options.toolbar.buttons[i] === 'colorPicker' && this.options.extensions) {
+                let colorPickerExtensionService = new ColorPickerExtension();
+                this.options.extensions['colorPicker'] = colorPickerExtensionService.getPickerExtension();
             }
         }
     }

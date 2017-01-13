@@ -30,9 +30,12 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     propagateChange = (_: any) => { };
 
     // Triggering events
+    @Output() changeEvent = new EventEmitter<any>();
     @Output() focusEvent = new EventEmitter<any>();
     @Output() keyUpEvent = new EventEmitter<any>();
     @Output() clickEvent = new EventEmitter<any>();
+    @Output() blurEvent = new EventEmitter<any>();
+    @Output() pasteEvent = new EventEmitter<any>();
 
     constructor(el: ElementRef) {
         this.el = el;
@@ -65,9 +68,10 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     }
 
     registerEventListeners() {
-        this.editor.subscribe('editableInput', (event: any, editable: any) => {
+        this.editor.subscribe('editableInput', (data: any, element: any) => {
             let value = this.editor.elements[0].innerHTML;
             this.ngOnChanges(value);
+            this.changeEvent.emit({'event': data, 'target': element});
         });
         this.editor.subscribe('focus', (data: any, element: any) => {
             this.focusEvent.emit({'event': data, 'target': element});
@@ -78,10 +82,16 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         this.editor.subscribe('editableClick', (data: any, element: any) => {
             this.clickEvent.emit({'event': data, 'target': element});
         });
+        this.editor.subscribe('blur', (data: any, element: any) => {
+            this.blurEvent.emit({'event': data, 'target': element});
+        });
+        this.editor.subscribe('editablePaste', (data: any, element: any) => {
+            this.pasteEvent.emit({'event': data, 'target': element});
+        });
+
     }
 
     setExtensions() {
-        console.log(this.options);
         if (!this.options || !this.options.toolbar || !this.options.toolbar.buttons) {
             return;
         }

@@ -1,4 +1,4 @@
-import { Component, Input, forwardRef, ElementRef, ViewChild, OnChanges, OnInit, OnDestroy, ViewEncapsulation, Output, EventEmitter } from '@angular/core';
+import { Component, Input, forwardRef, ElementRef, ViewChild, OnChanges, OnInit, OnDestroy, ViewEncapsulation, Output, EventEmitter, Renderer } from '@angular/core';
 import * as MediumEditor from './src/MediumEditor/js/medium-editor';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
@@ -15,19 +15,57 @@ import { DividerExtension } from "./src/Extension/divider.extension";
         multi: true
     }],
     encapsulation: ViewEncapsulation.None,
-    template: `<div #host></div>`,
+    template: `
+        <div #host></div>
+        <div class="floating-add-buttons" [class.active]="!isShowAddButtons"
+             [class.insert-button-visibile]="!isInsertButtonHidden">
+            <div class="floating-button" (click)="showAddButtons()">
+                <i class="icn icn-cross" aria-hidden="true"></i>
+            </div>
+            <ul class="list-unstyled">
+                <li class="floating-btn" (click)="startAddPicture()">
+                    <i class="icn icn-add_picture" aria-hidden="true"></i>
+                    <p>Pictures</p>
+                </li>
+                <!-- <li class="floating-btn">
+                   <i class="icn icn-add_collage" aria-hidden="true"></i>
+                   <p>Collage</p>
+                 </li>-->
+                <li class="floating-btn" (click)="startAddMedia()">
+                    <i class="icn icn-add_video" aria-hidden="true"></i>
+                    <p>Video</p>
+                </li>
+            </ul>
+        </div>        
+    `,
     styleUrls: [
         './src/MediumEditor/css/font-awesome.min.css',
         './src/MediumEditor/css/medium-editor.css',
     ]
 })
 export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDestroy, OnChanges {
+    @ViewChild('host') host: any;
+
     @Input() options: any;
     @Input() placeholder: string;
-    el: ElementRef;
-    editor: any;
-    @ViewChild('host') host: any;
-    propagateChange = (_: any) => { };
+
+    @Input()
+    set images(images) {
+        if (images) {
+            images.forEach(img => {
+                this.addToContent(this.generateImageContainer(img));
+            });
+            this.removeMediumInsert();
+        }
+    }
+
+    @Input()
+    set media(media) {
+        if (media) {
+            this.addToContent(media);
+            this.removeMediumInsert();
+        }
+    }
 
     // Triggering events
     @Output() changeEvent = new EventEmitter<any>();
@@ -36,10 +74,34 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     @Output() clickEvent = new EventEmitter<any>();
     @Output() blurEvent = new EventEmitter<any>();
     @Output() pasteEvent = new EventEmitter<any>();
+    @Output() startAddPictureEvent = new EventEmitter<any>();
+    @Output() startAddMediaEvent = new EventEmitter<any>();
+    @Output() featuredImageChangedEvent = new EventEmitter<any>();
+    @Output() lastOpenedPinChangedEvent = new EventEmitter<any>();
+    @Output() imageIsNotPinnableEvent = new EventEmitter<any>();
 
-    constructor(el: ElementRef) {
-        this.el = el;
-    }
+    propagateChange = (_: any) => { };
+    editor: any;
+
+    isShowAddButtons: boolean = true; // Show adds button (add image, collage, embed media)
+    isInsertButtonHidden: boolean = true; // Show / Hide insert (+) button
+
+    lastShowedImageOptionMenuId: any = null; // Last showed image option menu id
+    isWaitingForPin: boolean = false; // Add pin interface active
+    lastOpenedPin: any = null; // Last opened pin
+    pin: string = ""; // The pin list in json format
+
+    featuredImage: number = 3; // Featured image id
+    imageCounter: number = 1; // Image counter in current post
+
+    globalClickListenFunc: Function; // Global click event listeners
+    globalMouseOverListenFunc: Function; // Global mouseover event listeners
+    globalMouseOutListenFunc: Function; // Global mouseout event listeners
+
+    constructor(
+        private elementRef: ElementRef,
+        private renderer: Renderer,
+    ) {}
 
     ngOnInit() {
         this.options = (typeof this.options === 'string') ? JSON.parse(this.options)
@@ -54,6 +116,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
         this.editor = new MediumEditor(this.host.nativeElement, this.options);
 
+        this.setGlobalEventListeners();
         this.registerEventListeners();
     }
 
@@ -61,6 +124,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         if (this.editor) {
             this.editor.destroy();
         }
+
+        this.globalClickListenFunc();
     }
 
     ngOnChanges(changes: any) {
@@ -77,18 +142,155 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             this.focusEvent.emit({'event': data, 'target': element});
         });
         this.editor.subscribe('editableKeyup', (data: any, element: any) => {
+            this.addMediaInsertRow(data);
+            this.setEditorKeyupEventListeners(data);
             this.keyUpEvent.emit({'event': data, 'target': element});
         });
         this.editor.subscribe('editableClick', (data: any, element: any) => {
+            this.addMediaInsertRow(data);
+            this.setEditorClickEventListeners(data);
             this.clickEvent.emit({'event': data, 'target': element});
         });
         this.editor.subscribe('blur', (data: any, element: any) => {
+            this.setEditorBlurEventListener(data);
             this.blurEvent.emit({'event': data, 'target': element});
         });
         this.editor.subscribe('editablePaste', (data: any, element: any) => {
             this.pasteEvent.emit({'event': data, 'target': element});
         });
 
+    }
+
+    setGlobalEventListeners() {
+        this.globalClickListenFunc = this.renderer.listenGlobal('document', 'click', (event) => {
+            if ((!this.isInsertButtonHidden || this.isShowAddButtons)
+                && this.elementHasClass(event.target, 'medium-editor-element') == false
+                && !this.closestElementByClass(event.target, 'medium-editor-element')
+                && this.elementHasClass(event.target, 'floating-add-buttons') == false
+                && !this.closestElementByClass(event.target, 'floating-add-buttons')
+            ) {
+                this.hideInsertButton();
+                this.hideAddButtons();
+            }
+            if (!event.target || !event.target || event.target.getAttribute || event.target.getAttribute('dynamicClick')) {
+                this.setImageDefaultStateClick(event.target);
+            }
+        });
+
+        this.globalMouseOverListenFunc = this.renderer.listenGlobal('document', 'mouseover', (event) => {
+            if (!this.elementHasAttribute(event.target, 'dynamicMouseOver') || !this.isWaitingForPin) {
+                return;
+            }
+            event.defaultPrevented;
+
+            switch (event.target.getAttribute('dynamicMouseOver')) {
+                case 'showSavedPin()':
+                    this.showSavedPin(event.target);
+                    break;
+            }
+        });
+
+        this.globalMouseOutListenFunc = this.renderer.listenGlobal('document', 'mouseout', (event) => {
+
+            if (!this.elementHasAttribute(event.target, 'dynamicMouseOut') || !this.isWaitingForPin) {
+                return;
+            }
+            event.defaultPrevented;
+
+            let overAction = event.target.getAttribute('dynamicMouseOut');
+            switch (overAction) {
+                case 'hideSavedPin()':
+                    this.hideSavedPin(event.target);
+                    break;
+            }
+        });
+    }
+
+    setEditorBlurEventListener(event) {
+        if (this.elementHasClass(event.target, 'img-caption')) {
+            this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+        }
+    }
+
+    setEditorKeyupEventListeners(event) {
+        this.addMediaInsertRow(event);
+        if (this.elementHasClass(event.target, 'img-caption')) {
+            this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+        } else if (this.elementHasClass(event.target, 'product')) {
+            this.validateProduct(event.target);
+        } else if (this.elementHasClass(event.target, 'link')) {
+            this.validateUrl(event.target);
+        } else if (this.elementHasClass(event.target, 'store')) {
+            this.validateStore(event.target);
+        }
+    }
+
+    setEditorClickEventListeners(event) {
+        if (event.target && event.target && event.target.getAttribute && event.target.getAttribute('dynamicClick')) {
+            event.defaultPrevented;
+
+            switch (event.target.getAttribute('dynamicClick')) {
+                case 'toggleImageOptionMenu()':
+                    this.toggleImageOptionMenu(event);
+                    break;
+
+                case 'togglePinTooltipOutInWYSIWYGModeByRow()':
+                    this.togglePinTooltipOutInWYSIWYGModeByRow(event);
+                    break;
+
+                case 'startWaitForPin()':
+                    this.startWaitForPin();
+                    break;
+
+                case 'addNewPin()':
+                    this.addNewPin(event);
+                    break;
+
+                case 'togglePinTooltip()':
+                    this.togglePinTooltip(event);
+                    break;
+
+                case 'savePin()':
+                    this.savePin(this.closestElementByClass(event.target, 'add-pin-form'));
+                    break;
+
+                case 'setFeaturedImage()':
+                    this.setFeaturedImage(event);
+                    break;
+
+                case 'deletePicture()':
+                    this.deletePicture(event.target);
+                    break;
+
+                case 'editPinByRow()':
+                    this.editPinByRow(event);
+                    break;
+
+                case 'removeSavedPinByRow()':
+                    this.removeSavedPinByRow(event);
+                    break;
+
+                case 'alignImageLeft()':
+                    this.alignImage(event.target, 'left');
+                    break;
+
+                case 'alignImageCenter()':
+                    this.alignImage(event.target, 'center');
+                    break;
+
+                case 'imageFitToPage()':
+                    this.imageFitToPage(event.target);
+                    break;
+
+                default:
+                    this.setImageDefaultStateClick(event.target);
+            }
+        }
+
+        this.addMediaInsertRow(event);
+        if (this.elementHasClass(event.target, 'img-caption')) {
+            this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+        }
     }
 
     setExtensions() {
@@ -120,9 +322,1402 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             }
         }
     }
+
     registerOnChange(fn: any) {
         this.propagateChange = fn;
     }
+
     registerOnTouched(fn: any) { }
+
+    /* Media buttons start */
+
+    removeMediumInsert() {
+        let mediumInsertActivElement = this.elementRef.nativeElement.querySelector('.medium-insert-active');
+        if (this.elementHasClass(mediumInsertActivElement, 'medium-insert-active')) {
+            mediumInsertActivElement.classList.remove('medium-insert-active');
+        }
+    }
+
+    addMediaInsertRow(event) {
+        let targetElement = event.target;
+        let selection = window.getSelection();
+        let range;
+        let current;
+        let paragraph;
+
+        if (!selection || selection.rangeCount === 0) {
+            current = targetElement;
+        } else {
+            range = selection.getRangeAt(0);
+            current = range.commonAncestorContainer;
+        }
+        // When user clicks on editor's placeholder in FF, current el is editor itself, not the first paragraph as it should
+        if (this.elementHasClass(current, 'medium-editor-element')) {
+            current = current.querySelector('p');
+        }
+
+        paragraph = current && current.tagName && current.tagName === "P" ? current : this.closestElementByTagname(current, 'P');
+
+        this.hideInsertButton();
+        this.hideAddButtons();
+
+        // if (this.elementHasClass(targetElement, 'medium-editor-placeholder') === false) {
+        this.removeMediumInsert();
+        if (this.elementHasClass(targetElement, 'pinnable-image-row') !== false
+            || this.closestElementByClass(targetElement, 'pinnable-image-row')
+            || this.elementHasClass(targetElement, 'embed-media-frame') !== false
+            || this.closestElementByClass(event.target, 'embed-media-frame')
+        ) {
+            return;
+        }
+        if (paragraph && paragraph.outerHTML && paragraph.textContent.trim() === '') {
+            paragraph.classList.add('medium-insert-active');
+            this.showInsertButton();
+        }
+        // }
+    }
+
+    calculateInsertButtonPosition() {
+        let targetElement = this.elementRef.nativeElement.querySelector('.medium-insert-active');
+        let targetElementXPosition = 0;
+        let targetElementYPosition = targetElement.getBoundingClientRect().top;
+        while (targetElement) {
+            targetElementXPosition += (targetElement.offsetLeft - targetElement.scrollLeft + targetElement.clientLeft);
+            targetElement = targetElement.offsetParent;
+        }
+
+        let meditorElementXPosition = 0;
+        let meditorElement = this.editor.elements[0];
+        let mediumEditorScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        while (meditorElement) {
+            meditorElementXPosition += (meditorElement.offsetLeft - meditorElement.scrollLeft + meditorElement.clientLeft);
+            meditorElement = meditorElement.offsetParent;
+        }
+
+        var X = targetElementXPosition - meditorElementXPosition;
+        return {
+            'xpos': X - 40,
+            'ypos': targetElementYPosition + mediumEditorScrollTop - 125
+        }
+    }
+
+    showInsertButton() {
+        let position = this.calculateInsertButtonPosition();
+        let insertButton = this.elementRef.nativeElement.querySelector('.floating-add-buttons');
+        if (!insertButton) {
+            return;
+        }
+        insertButton.style.top = position.ypos + 'px';
+        insertButton.style.left = position.xpos + 'px';
+        this.isInsertButtonHidden = false;
+    }
+
+    hideInsertButton() {
+        this.isInsertButtonHidden = true;
+    }
+
+    showAddButtons() {
+        this.isShowAddButtons = !this.isShowAddButtons;
+    }
+
+    hideAddButtons() {
+        this.isShowAddButtons = true;
+    }
+
+    startAddPicture() {
+        this.startAddPictureEvent.emit();
+    }
+
+    startAddMedia() {
+        this.startAddMediaEvent.emit();
+    }
+
+    /* Media buttons end */
+
+    /* Insert media start */
+
+    addToContent(newContent) {
+        this.hideAddButtons();
+        let insertionTarget = this.elementRef.nativeElement.querySelector('.medium-insert-active');
+        if (!insertionTarget || insertionTarget === null || insertionTarget === undefined) {
+            return;
+        }
+        insertionTarget.insertAdjacentHTML('beforeend', newContent);
+        // this.content = this.editor.elements[0].innerHTML; // TODO ellenőrizni a végén
+    }
+
+    /**
+     * Generate image options data HTML (menu, menu button and add pin hint)
+     *
+     * @param actualId The actual image id
+     * @returns {string} The generated image options data HTML
+     */
+    generateImageOptionDataHtml(actualId) {
+        let imageOptionMenuId = actualId + 'Menu';
+        let imageOptionButtonId = actualId + 'MenuButton';
+
+        return  '<span class="meditor-tooltiptext">Click on the image</span>'
+            + '<button id="' + imageOptionButtonId + '" class="post-image-option-button" data-menu-id="' + imageOptionMenuId + '" dynamicClick="toggleImageOptionMenu()">'
+            + '<i dynamicClick="toggleImageOptionMenu()" class="icn icn-bullets"></i>'
+            + '</button>'
+            + '<div id="' + imageOptionMenuId + '" class="post-image-options" data-button-id="' + imageOptionButtonId + '">'
+            + '<div class="center-btn">'
+            + '<ul class="list-inline center">'
+            + '<li id="' + actualId + 'Featured" class="set-featured first">'
+            + '<a class="post-image-option-element" data-disable-preview="true">'
+            + '<i dynamicClick="setFeaturedImage()" class="icn icn-prefer_picture"></i>'
+            + '<p>Prefer</p>'
+            + '</a>'
+            + '</li>'
+            + '<li id="' + actualId + 'AddPin" class="add-pin">'
+            + '<a class="post-image-option-element" data-disable-preview="true">'
+            + '<i dynamicClick="startWaitForPin()" class="icn icn-add_pin"></i>'
+            + '<p>Pin</p>'
+            + '</a>'
+            + '</li>'
+            + '<li id="' + actualId + 'DeletePicture" class="delete-picture">'
+            + '<a class="post-image-option-element" data-disable-preview="true">'
+            + '<i dynamicClick="deletePicture()" class="icn icn-del_pic"></i>'
+            + '<p>Delete</p>'
+            + '</a>'
+            + '</li>'
+            + '<li class="img-align-button">'
+            + '<a class="post-image-option-element" data-disable-preview="true">'
+            + '<i dynamicClick="alignImageLeft()" class="fa fa-align-left"></i>'
+            + '<p>Align left</p>'
+            + '</a>'
+            + '</li>'
+            + '<li class="img-align-button active">'
+            + '<a class="post-image-option-element" data-disable-preview="true">'
+            + '<i dynamicClick="alignImageCenter()" class="fa fa-align-justify"></i>'
+            + '<p>Center</p>'
+            + '</a>'
+            + '</li>'
+            + '<li class="img-align-button">'
+            + '<a class="post-image-option-element" data-disable-preview="true">'
+            + '<i dynamicClick="imageFitToPage()" class="fa fa-align-right"></i>'
+            + '<p>Fit to page</p>'
+            + '</a>'
+            + '</li>'
+            + '</ul>'
+            + '</div>'
+            + '</div>';
+    }
+
+    generateImageContainer(img) {
+        let actualId = "postImage" + this.imageCounter;
+
+        let featuredClass = '';
+        if (this.featuredImage === 3) {
+            this.featuredImage = img.id;
+            featuredClass = 'featured-image';
+            this.featuredImageChanged();
+        }
+
+        let content = ''
+            + '<div class="row pinnable-image-row image-align-center ' + featuredClass + '" style="display: inline-block" draggable="true" contenteditable="false" data-img-id="' + actualId + '" data-img-original-id="' + img.id + '" data-width="' + img.resized_width + '" data-height="' + img.resized_height + '">'
+            + '<div class="image-content-container">'
+            + '<div class="pin-container cd-product cd-container" >'
+            + '<div class="pin-list cd-product-wrapper">'
+            + '<img dynamicClick="addNewPin()" id="' + actualId + '"  data-original-id="' + img.id + '" class="post-image" data-id="' + this.imageCounter + '" src="' + img.src + '"/>'
+            + '<ul id="' + actualId + 'Ul" class="pin-point-list">'
+            + '</ul>'
+            + this.generateImageOptionDataHtml(actualId)
+            + '</div>'
+            + '</div>'
+            + '<figcaption id="' + actualId + 'Caption" class="img-caption" data-image-id="' + actualId + '" contenteditable="true" placeholder="Write your image caption here"></figcaption>'
+            + '<ul id="' + actualId + 'RowsUl" class="pin-row-list" contenteditable="false">'
+            + '</ul>'
+            + '</div>'
+            + '</div>'
+            + '<p></p>';
+
+        this.imageCounter++;
+        return content;
+    }
+
+    /* Insert media end */
+
+    /* Actions on media start */
+
+    /**
+     * Open image option menu
+     *
+     * @param optionMenuElement the image option menu
+     */
+    openImageOptionMenu(optionMenuElement) {
+        if (this.elementHasClassList(optionMenuElement)) {
+            optionMenuElement.classList.add('active');
+            this.lastShowedImageOptionMenuId = optionMenuElement.getAttribute("id");
+        }
+    }
+
+    /**
+     * Close image option menu
+     *
+     * @param optionMenuElement the opened image option menu
+     */
+    closeImageOptionMenu(optionMenuElement) {
+        if (this.elementHasClass(optionMenuElement, 'active')) {
+            optionMenuElement.classList.remove('active');
+            this.lastShowedImageOptionMenuId = null;
+
+            this.isWaitingForPin = false;
+            this.lastOpenedPin = null;
+            this.lastOpenedPinChanged();
+        }
+    }
+
+    /**
+     * Close last opened image option menu
+     */
+    closeLastOpenedImageOptionMenu() {
+        if (this.lastShowedImageOptionMenuId !== null && this.elementExist('#' + this.lastShowedImageOptionMenuId)) {
+            let lastShowedImageOptionElement = this.elementRef.nativeElement.querySelector('#' + this.lastShowedImageOptionMenuId);
+            this.closeImageOptionMenu(lastShowedImageOptionElement);
+        }
+    }
+
+    /**
+     * Toggle image option menu
+     *
+     * @param event "three dot" button click event
+     */
+    toggleImageOptionMenu(event) {
+        let imageOptionButton = event.target;
+
+        if (imageOptionButton.tagName !== "BUTTON") {
+            imageOptionButton = this.closestElementByClass(imageOptionButton, 'post-image-option-button');
+        }
+
+        if (!this.elementHasAttribute(imageOptionButton, 'data-menu-id')
+            || !this.elementExist('#' + imageOptionButton.getAttribute('data-menu-id'))
+        ) {
+            return;
+        }
+
+        this.closeAllPinTooltip();
+        let imageOptionMenuElement = this.elementRef.nativeElement.querySelector('#' + imageOptionButton.getAttribute('data-menu-id'));
+
+        if (this.isWaitingForPin) {
+            if (this.lastShowedImageOptionMenuId && this.elementExist('#' + this.lastShowedImageOptionMenuId)) {
+                let lastImageOptionMenu = this.elementRef.nativeElement.querySelector('#' + this.lastShowedImageOptionMenuId);
+                imageOptionButton = this.elementRef.nativeElement.querySelector('#' + lastImageOptionMenu.getAttribute('data-button-id'));
+            }
+            this.endWaitForPin(imageOptionButton);
+            this.openImageOptionMenu(imageOptionMenuElement);
+            // this.refreshMediumEditor(); // TODO ??
+            return;
+        }
+
+        if (this.elementHasAttribute(imageOptionMenuElement, 'id')
+            && this.lastShowedImageOptionMenuId === imageOptionMenuElement.getAttribute('id')
+        ) {
+            this.closeImageOptionMenu(imageOptionMenuElement);
+        } else {
+            this.closeLastOpenedImageOptionMenu();
+            this.openImageOptionMenu(imageOptionMenuElement);
+        }
+
+    }
+
+    /**
+     * If the user clicks outside the picture then the overlay will be closed and the pins won't be saved.
+     *
+     * @param event Click event
+     */
+    setImageDefaultStateClick(targetElement) {
+        if (this.closestElementByClass(targetElement, 'pin-container')) {
+            return;
+        }
+
+        this.setImageDefaultState();
+    }
+
+    setImageDefaultState() {
+        if (this.isWaitingForPin && this.lastShowedImageOptionMenuId && this.elementExist('#' + this.lastShowedImageOptionMenuId)) {
+            let lastImageOptionMenu = this.elementRef.nativeElement.querySelector('#' + this.lastShowedImageOptionMenuId);
+            let imageOptionButton = this.elementRef.nativeElement.querySelector('#' + lastImageOptionMenu.getAttribute('data-button-id'));
+            this.endWaitForPin(imageOptionButton);
+            // this.refreshMediumEditor(); // TODO ??
+            this.lastShowedImageOptionMenuId = null;
+            this.isWaitingForPin = false;
+            this.lastOpenedPin = null;
+            this.lastOpenedPinChanged();
+        } else if (this.lastShowedImageOptionMenuId) {
+            this.closeLastOpenedImageOptionMenu();
+        }
+    }
+
+    featuredImageChanged() {
+        this.featuredImageChangedEvent.emit(this.featuredImage);
+    }
+
+    /**
+     * Set image to featured
+     *
+     * @param event An image featured button click event
+     */
+    setFeaturedImage(event) {
+        let featuredImageButton = event.target;
+        let element = this.elementRef.nativeElement.querySelector('.featured-image');
+        if (element) {
+            element.classList.toggle('featured-image');
+        }
+        let pictureContainer = this.closestElementByClass(featuredImageButton, 'pinnable-image-row');
+        pictureContainer.classList.toggle('featured-image');
+        if (this.elementHasAttribute(pictureContainer, 'data-img-original-id')) {
+            this.featuredImage = parseInt(pictureContainer.getAttribute("data-img-original-id"));
+            this.featuredImageChanged();
+        }
+
+        this.closeLastOpenedImageOptionMenu();
+    }
+
+    /**
+     * Remove image from the post
+     *
+     * @param target The removable image
+     */
+    deletePicture(target) {
+        let pictureContainer = this.closestElementByClass(target, 'pinnable-image-row');
+        if (pictureContainer) {
+            pictureContainer.remove();
+            let firstImage = this.elementRef.nativeElement.querySelector('.post-image');
+            if (firstImage) {
+                let pinnableImageRow = this.closestElementByClass(firstImage, 'pinnable-image-row');
+                pinnableImageRow.classList.add('featured-image');
+                this.featuredImage = parseInt(firstImage.getAttribute("data-original-id"));
+                return;
+            }
+            this.featuredImage = 3;
+            this.featuredImageChanged();
+            // this.refreshMediumEditor(); // TODO: ??
+            // this.checkContent(); // TODO hasonlóan a refreshhez egy event kiváltás, lehet elég lesz
+        }
+
+        this.closeLastOpenedImageOptionMenu();
+    }
+
+    /**
+     * Set image data alt and title attribute by caption
+     *
+     * @param imgId The image id
+     * @param data The caption data
+     */
+    setImageCaptionData(imgId, data) {
+        let image = this.elementRef.nativeElement.querySelector('#' + imgId);
+        image.setAttribute('alt', data);
+        image.setAttribute('title', data);
+    }
+
+    /**
+     * Align image
+     *
+     * @param targetElement An align button from target image
+     * @param direction Align direction
+     */
+    alignImage(targetElement, direction) {
+        let pinnableImageRow = this.closestElementByClass(targetElement, 'pinnable-image-row');
+        let directionClass = {
+            'left': 'image-align-left',
+            'center': 'image-align-center',
+        };
+
+        if (this.elementHasClass(pinnableImageRow, 'image-align-left')) {
+            pinnableImageRow.classList.remove('image-align-left');
+        }
+
+        if (this.elementHasClass(pinnableImageRow, 'image-align-center')) {
+            pinnableImageRow.classList.remove('image-align-center');
+        }
+
+        if (this.elementHasClass(pinnableImageRow, 'image-fit-to-page')) {
+            pinnableImageRow.classList.remove('image-fit-to-page');
+        }
+
+        pinnableImageRow.classList.add(directionClass[direction]);
+
+        let activeAlignButton = pinnableImageRow.querySelector('.img-align-button.active');
+        if (activeAlignButton) {
+            activeAlignButton.classList.remove('active');
+        }
+
+        if (!this.elementHasClass(targetElement, 'img-align-button')) {
+            targetElement = this.closestElementByClass(targetElement, 'img-align-button');
+        }
+        targetElement.classList.add('active');
+
+        this.closeLastOpenedImageOptionMenu();
+        // this.refreshMediumEditor(); // TODO ???
+    }
+
+    imageFitToPage(targetElement) {
+        let pinnableImageRow = this.closestElementByClass(targetElement, 'pinnable-image-row');
+        // if (!pinnableImageRow
+        //      || !this.elementHasAttribute(pinnableImageRow, 'data-width') || pinnableImageRow.getAttribute('data-width') < 600
+        //      || !this.elementHasAttribute(pinnableImageRow, 'data-height') || pinnableImageRow.getAttribute('data-height') < 600
+        // ) {
+        //     return;
+        // }
+
+        if (this.elementHasClass(pinnableImageRow, 'image-align-left')) {
+            pinnableImageRow.classList.remove('image-align-left');
+        }
+
+        if (this.elementHasClass(pinnableImageRow, 'image-align-center')) {
+            pinnableImageRow.classList.remove('image-align-center');
+        }
+
+        pinnableImageRow.classList.add('image-fit-to-page');
+
+        let activeAlignButton = pinnableImageRow.querySelector('.img-align-button.active');
+        if (activeAlignButton) {
+            activeAlignButton.classList.remove('active');
+        }
+
+        if (!this.elementHasClass(targetElement, 'img-align-button')) {
+            targetElement = this.closestElementByClass(targetElement, 'img-align-button');
+        }
+        targetElement.classList.add('active');
+
+        this.closeLastOpenedImageOptionMenu();
+        // this.refreshMediumEditor(); // TODO ???
+    }
+
+    /* Actions on media end */
+
+    /* Edit \ Create pin start */
+
+    lastOpenedPinChanged() {
+        this.lastOpenedPinChangedEvent.emit(this.lastOpenedPin);
+    }
+
+    /**
+     * Activate waiting for pin state
+     */
+    startWaitForPin() {
+        if (this.lastShowedImageOptionMenuId === null || !this.elementExist('#' + this.lastShowedImageOptionMenuId)) {
+            return;
+        }
+
+        let imageOptionMenu = this.elementRef.nativeElement.querySelector('#' + this.lastShowedImageOptionMenuId);
+        let parentPinnableImgRow = this.closestElementByClass(imageOptionMenu, 'pinnable-image-row');
+        let image = parentPinnableImgRow.querySelector('.post-image');
+
+        if (parseInt(window.getComputedStyle(image,null).getPropertyValue("width"), 10) < 100
+            || parseInt(window.getComputedStyle(image,null).getPropertyValue("height"), 10) < 100
+        ) {
+            this.imageIsNotPinnableEvent.emit();
+            return;
+        }
+
+        imageOptionMenu.classList.remove('active');
+
+        this.isWaitingForPin = true;
+
+        this.showMeditorTooltip(parentPinnableImgRow);
+        parentPinnableImgRow.classList.add('wait-for-pin');
+
+        if (this.elementHasAttribute(imageOptionMenu, 'data-button-id')
+            && this.elementExist('#' + imageOptionMenu.getAttribute('data-button-id'))
+        ) {
+            let imageOptionButton = this.elementRef.nativeElement.querySelector('#' + imageOptionMenu.getAttribute('data-button-id'));
+            imageOptionButton.innerHTML = '<i dynamicClick="toggleImageOptionMenu()" class="icn icn-dots"></i>';
+        }
+    }
+
+    /**
+     * Deactivate waiting for pin state
+     *
+     * @param imageOptionMenu The actual image option menu
+     */
+    endWaitForPin(imageOptionButton) {
+        this.removeLastOpenedUnsavedPin();
+        this.isWaitingForPin = false;
+
+        imageOptionButton.innerHTML = '<i dynamicClick="toggleImageOptionMenu()" class="icn icn-bullets"></i>';
+
+        let parentPinnableImgRow = this.closestElementByClass(imageOptionButton, 'pinnable-image-row');
+        if (parentPinnableImgRow) {
+            this.hideMeditorTooltip(parentPinnableImgRow);
+            if (this.elementHasClass(parentPinnableImgRow, 'wait-for-pin')) {
+                parentPinnableImgRow.classList.remove('wait-for-pin');
+            }
+        }
+    }
+
+    /**
+     * Show "how to add pin" tooltip in actual picture
+     *
+     * @param element Actual tooltip parent element
+     */
+    showMeditorTooltip(element) {
+        let tooltipElement = element.querySelector('.meditor-tooltiptext');
+
+        if (tooltipElement && this.elementHasClassList(tooltipElement)) {
+            tooltipElement.classList.add('active');
+        }
+    }
+
+    /**
+     * Hide "how to add pin" tooltip in actual picture
+     *
+     * @param element Actual tooltip parent element
+     */
+    hideMeditorTooltip(element) {
+        let tooltipElement = element.querySelector('.meditor-tooltiptext');
+
+        if (tooltipElement && this.elementHasClass(tooltipElement, 'active')) {
+            tooltipElement.classList.remove('active');
+        }
+    }
+
+    /**
+     * Set pin tooltip window direction
+     *
+     * @param targetElement The event target object
+     */
+    setPinTooltipDirection(targetElement) {
+        let selectedPoint = this.closestElementByClass(targetElement, 'cd-single-point');
+        let nextCdMoreInfo = selectedPoint.querySelector('.cd-more-info');
+
+        let targetElementXPosition = 0;
+        let targetElementYPosition = 0;
+        while(targetElement) {
+            targetElementXPosition += (targetElement.offsetLeft - targetElement.scrollLeft + targetElement.clientLeft);
+            targetElementYPosition += (targetElement.offsetTop - targetElement.scrollTop + targetElement.clientTop);
+            targetElement = targetElement.offsetParent;
+        }
+
+        let meditorElementXPosition = 0;
+        let meditorElementYPosition = 0;
+        let meditorElement = this.editor.elements[0]; // this.elementRef.nativeElement.querySelector('.medium-editor-element');
+        while (meditorElement) {
+            meditorElementXPosition += (meditorElement.offsetLeft - meditorElement.scrollLeft + meditorElement.clientLeft);
+            meditorElementYPosition += (meditorElement.offsetTop - meditorElement.scrollTop + meditorElement.clientTop);
+            meditorElement = meditorElement.offsetParent;
+        }
+        var X = targetElementXPosition - meditorElementXPosition;
+        var Y = targetElementYPosition - meditorElementYPosition;
+
+        if (this.elementHasClass(nextCdMoreInfo, 'cd-top')) {
+            nextCdMoreInfo.classList.remove('cd-top');
+        }
+        if (this.elementHasClass(nextCdMoreInfo, 'cd-bottom')) {
+            nextCdMoreInfo.classList.remove('cd-bottom');
+        }
+        if (this.elementHasClass(nextCdMoreInfo, 'cd-right')) {
+            nextCdMoreInfo.classList.remove('cd-right');
+        }
+
+        if (X < 108) {
+            nextCdMoreInfo.classList.add('cd-right');
+            return;
+        }
+
+        if (Y < 220) {
+            nextCdMoreInfo.classList.add('cd-bottom');
+            return;
+        }
+
+        //Default:
+        nextCdMoreInfo.classList.add('cd-top');
+        return;
+
+    }
+
+    /**
+     * Open a pin tooltip window
+     *
+     * @param selectedPoint The actual pin
+     */
+    openPinTooltip(selectedPoint) {
+        if (selectedPoint) {
+            selectedPoint.classList.add('is-open');
+            let selectedRow = this.elementRef.nativeElement.querySelector('#' + selectedPoint.getAttribute('id') + 'Row');
+            if (selectedRow) {
+                selectedRow.classList.add('is-open');
+            }
+            this.lastOpenedPin = selectedPoint.getAttribute('id');
+            this.lastOpenedPinChanged();
+        }
+    }
+
+    /**
+     * Close a pin tooltip window
+     *
+     * @param selectedPoint The actual pin
+     */
+    closePinTooltip(selectedPoint) {
+        if (this.elementHasClass(selectedPoint, 'is-open')) {
+            selectedPoint.classList.remove('is-open');
+            let selectedRow = this.elementRef.nativeElement.querySelector('#' + selectedPoint.getAttribute('id') + 'Row');
+            if (selectedRow) {
+                selectedRow.classList.remove('is-open');
+            }
+            this.lastOpenedPin = null;
+            this.lastOpenedPinChanged();
+        }
+    }
+
+    /**
+     * Close all pin tooltip window
+     */
+    closeAllPinTooltip() {
+        let selectedPoints = this.elementRef.nativeElement.querySelectorAll('.cd-single-point');
+        if (!selectedPoints || selectedPoints.length < 1) {
+            return;
+        }
+        for (let selectedPoint of selectedPoints) {
+            this.closePinTooltip(selectedPoint);
+            this.removeUnsavedPin(selectedPoint);
+        }
+    }
+
+    /**
+     * Close last opened pin tooltip window
+     */
+    closeLastOpenedPinTooltip() {
+        if (this.lastOpenedPin && this.lastOpenedPin != null && this.elementExist('#' + this.lastOpenedPin)) {
+            let lastOpenedPinObject = this.elementRef.nativeElement.querySelector('#' + this.lastOpenedPin);
+
+            if (this.isUpdatedPin(lastOpenedPinObject)) {
+                this.closePinEditor(lastOpenedPinObject);
+            }
+
+            this.closePinTooltip(lastOpenedPinObject);
+        }
+    }
+
+    /**
+     * Toggle pin tooltip, if the pin is a saved pin remove this
+     *
+     * @param event The toggle pin event
+     */
+    togglePinTooltip(event) {
+        let clickedObject = event.target; // A pin or a pin popup close button
+        let selectedPoint = this.closestElementByClass(clickedObject, 'cd-single-point');
+
+        if (!this.isWaitingForPin) {
+            this.togglePinTooltipOutInWYSIWYGMode(selectedPoint);
+            return;
+        }
+
+        let parentPinnableImgRow = this.closestElementByClass(clickedObject, 'pinnable-image-row');
+        if (parentPinnableImgRow) {
+            this.hideMeditorTooltip(parentPinnableImgRow);
+        }
+
+        // Remove saved pin in edit
+        if (!this.isSavedPin(selectedPoint)
+            && this.isUpdatedPin(selectedPoint)
+            && this.elementHasClass(clickedObject, 'remove-saved-pin')
+        ) {
+            this.removeSavedPin(selectedPoint);
+            return;
+        } else if (clickedObject.tagName != "BUTTON" && this.isSavedPin(selectedPoint)) { // Edit pin
+            this.editPin(selectedPoint);
+            return;
+        }
+
+        if (this.elementHasClass(selectedPoint, 'is-open')) {
+            this.closePinTooltip(selectedPoint);
+            this.removeUnsavedPin(selectedPoint);
+        } else {
+            this.closeLastOpenedPinTooltip();
+            this.openPinTooltip(selectedPoint);
+            this.setPinTooltipDirection(clickedObject);
+        }
+
+        // this.refreshMediumEditor(); // TODO ???
+    }
+
+    /**
+     * Toggle (saved) pin tooltip in WYSIWYG mode
+     *
+     * @param event Pin icon click event
+     * @param selectedPoint The pin
+     */
+    togglePinTooltipOutInWYSIWYGMode(selectedPoint) {
+        if (this.elementHasClass(selectedPoint, 'is-open')) {
+            this.hideSavedPin(selectedPoint);
+            return;
+        } else {
+            this.showSavedPin(selectedPoint);
+            return;
+        }
+    }
+
+    /**
+     * Toggle (saved) pin tooltip in WYSIWYG mode by pin list row
+     *
+     * @param event The row click event
+     */
+    togglePinTooltipOutInWYSIWYGModeByRow(event) {
+        if (this.isWaitingForPin) {
+            return;
+        }
+
+        let selectedPoint = this.getPinByRowClick(event);
+        if (selectedPoint) {
+            this.togglePinTooltipOutInWYSIWYGMode(selectedPoint);
+        }
+    }
+
+    /**
+     * Calculate new pin position in the image
+     *
+     * @param event Click event in the image
+     * @param postImage The image
+     * @returns {{x: number, y: number}} The new pin position (percent) in the image
+     */
+    calculateNewPinPosition(event, postImage) {
+        let xCord = event.offsetX;
+        let yCord = event.offsetY;
+        let xPercent = xCord / postImage.width * 100;
+        let yPercent = yCord / postImage.height * 100;
+
+        return {
+            'x': xPercent,
+            'y': yPercent
+        }
+    }
+
+    validateProduct(targetElement) {
+        if (targetElement.value !== '' && targetElement.value.length <= 30 ) {
+            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
+            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
+            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'ProductValid');
+            if (this.elementHasClass(validationError, 'active')) {
+                validationError.classList.remove('active');
+            }
+            if (this.elementHasAttribute(saveButton, 'disabled')) {
+                saveButton.removeAttribute('disabled');
+            }
+        } else if (targetElement.value === '' || targetElement.value.length > 30) {
+            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
+            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
+            saveButton.setAttribute('disabled', true);
+            if (targetElement.value.length > 30) {
+                let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'ProductValid');
+                validationError.classList.add('active');
+            }
+        }
+    }
+
+    isUrlValid(url) {
+        return /^(http|https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(url);
+    }
+
+    validateUrl(targetElement) {
+        // let URL_REGEXP = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+        if (targetElement.value !== '' && !this.isUrlValid(targetElement.value)) {
+            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
+            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
+            saveButton.setAttribute('disabled', true);
+            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'LinkValid');
+            validationError.classList.add('active');
+        } else if (this.isUrlValid(targetElement.value) || targetElement.value === '') {
+            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
+            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
+            if (this.elementHasAttribute(saveButton, 'disabled')) {
+                saveButton.removeAttribute('disabled');
+            }
+            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'LinkValid');
+            if (this.elementHasClass(validationError, 'active')) {
+                validationError.classList.remove('active');
+            }
+        }
+    }
+
+    validateStore(targetElement) {
+        if (targetElement.value.length <= 25 ) {
+            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
+            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
+            if (this.elementHasAttribute(saveButton, 'disabled')) {
+                saveButton.removeAttribute('disabled');
+            }
+            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'StoreValid');
+            if (this.elementHasClass(validationError, 'active')) {
+                validationError.classList.remove('active');
+            }
+        } else if (targetElement.value.length > 25) {
+            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
+            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
+            saveButton.setAttribute('disabled', true);
+            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'StoreValid');
+            validationError.classList.add('active');
+        }
+    }
+
+    /**
+     * Create pin form
+     *
+     * @param pinId The pin ID
+     * @param savedData The saved data if the pin is a saved pin
+     * @returns {string} pin form
+     */
+    createPinForm(pinId, savedData: any = false) {
+        let saveButton = '<button id="' + pinId + 'FormSave" dynamicClick="savePin()" class="btn btn-xs btn-inline btn-blue pull-right" disabled>Pin it</button>';
+        let discardButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray">Discard</button>';
+        let deleteButton = '';
+        let updateClass = '';
+        let dataAttribute = '';
+        let product = '', store = '', tags = '', link = '';
+
+        if (savedData !== false) {
+            saveButton = '<button id="' + pinId + 'FormSave" dynamicClick="savePin()" class="btn btn-xs btn-inline btn-blue pull-right">Update</button>';
+            discardButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray">Cancel</button>';
+            deleteButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray remove-saved-pin">Delete</button>';
+            updateClass = 'saved-pin-update';
+            dataAttribute = 'data-product="' + savedData['product']
+                + '" data-store="' + savedData['store']
+                + '" data-tags="' + savedData['tags']
+                + '" data-link="' + savedData['link'] + '"';
+            product = savedData['product'];
+            store = savedData['store'];
+            tags = savedData['tags'];
+            link = savedData['link'];
+        }
+
+        let pinDataForm = '<div id="' + pinId + 'Form" data-pin-id="' + pinId + '" class="add-pin-form form-group clearfix ' + updateClass + '" ' + dataAttribute + '>'
+            + '<div class="pin-block">'
+            +   '<a><i class="icn icn-add_pin"></i></a>'
+            +   '<span>Pin <strong>details:</strong></span>'
+            + '</div>'
+            + '<input contenteditable="true" type="text" class="col-sm-12 product" placeholder="Product name" value="' + product + '"/>'
+            + '<div id="' + pinId + 'FormProductValid" class="validation-error-msg add-pin-form-valid">Product name is too long, max. 30 character allowed!</div>'
+            + '<input contenteditable="true" type="text" class="col-sm-12 store" placeholder="Store name" value="' + store + '"/>'
+            + '<div id="' + pinId + 'FormStoreValid" class="validation-error-msg add-pin-form-valid">Store name is too long, max. 25 character allowed!</div>'
+            + '<input contenteditable="true" type="text" class="col-sm-12 tags" placeholder="#Tags" value="' + tags + '"/>'
+            + '<input contenteditable="true" type="text" class="col-sm-12 link" placeholder="Link" value="' + link + '"/>'
+            + '<div id="' + pinId + 'FormLinkValid" class="validation-error-msg add-pin-form-valid">Not valid url!</div>'
+            + discardButton
+            + deleteButton
+            + saveButton
+            + '</div>';
+
+        return pinDataForm;
+    }
+
+    /**
+     * Create a new pin html
+     *
+     * @param position The new pin position
+     * @param spId The new pin ID
+     * @returns {string} The new pin html
+     */
+    createNewPin(position, pinId) {
+        return '<li id="' + pinId + '" class="cd-single-point" style="top:' + position.y + '%; left: ' + position.x + '%">'
+            + '<i class="icn icn-add_pin" dynamicClick="togglePinTooltip()" dynamicMouseOut="hideSavedPin()" dynamicMouseOver="showSavedPin()"></i>'
+            + '<a class="cd-img-replace" href="javascript:void(0);" dynamicClick="togglePinTooltip()" dynamicMouseOut="hideSavedPin()" dynamicMouseOver="showSavedPin()" data-disable-preview="true">Pin</a>'
+            + '<div class="cd-more-info">'
+            + this.createPinForm(pinId)
+            + '<a href="javascript:void();" data-disable-preview="true" class="cd-close-info cd-img-replace"><i class="icn icn-cross"></i></a>'
+            + '</div>'
+            + '</li>';
+    }
+
+    /**
+     * Add new pin to the image
+     *
+     * @param event Click event in an image
+     */
+    addNewPin(event) {
+        var postImage = event.target;
+        if (!this.elementHasClass(postImage, 'post-image')) {
+            return false;
+        }
+
+        let parentPinnableImgRow = this.closestElementByClass(postImage, 'pinnable-image-row');
+        if (!parentPinnableImgRow) {
+            return;
+        }
+
+        let imageOptionMenu = parentPinnableImgRow.querySelector('.post-image-options');
+        if (!this.isWaitingForPin || imageOptionMenu.getAttribute("id") !== this.lastShowedImageOptionMenuId) {
+            return;
+        }
+
+        this.hideMeditorTooltip(parentPinnableImgRow);
+        this.removeLastOpenedUnsavedPin();
+        let position = this.calculateNewPinPosition(event, postImage);
+
+        let postImageId = postImage.getAttribute("id");
+        let pinId = postImageId + 'SP' + Math.floor(position.y) + '' + Math.floor(position.x);
+        let newPin = this.createNewPin(position, pinId);
+
+        let pinList = this.elementRef.nativeElement.querySelector('#' + postImageId + 'Ul');
+        pinList.insertAdjacentHTML('beforeend', newPin);
+        // this.refreshMediumEditor(); // TODO ???
+
+        setTimeout(() => {
+            let selectedPoint = this.elementRef.nativeElement.querySelector('#' + pinId);
+            let selectedPointA = this.elementRef.nativeElement.querySelector('#' + pinId + ' a');
+            this.openPinTooltip(selectedPoint);
+            this.setPinTooltipDirection(selectedPointA);
+        }, 0);
+
+    }
+
+    /**
+     * Remove unsaved pin
+     */
+    removeUnsavedPin(selectedPoint) {
+        if (this.isSavedPin(selectedPoint)) {
+            return;
+        } else if (this.isUpdatedPin(selectedPoint)) {
+            this.closePinEditor(selectedPoint);
+            return;
+        }
+        selectedPoint.parentNode.removeChild(selectedPoint);
+        // this.refreshMediumEditor(); // TODO ??
+    }
+
+    /**
+     * Remove last opened pin if that is unsaved
+     */
+    removeLastOpenedUnsavedPin() {
+        if (!this.lastOpenedPin === null || !this.elementExist('#' + this.lastOpenedPin)) {
+            return;
+        }
+        let lastOpenedPinElement = this.elementRef.nativeElement.querySelector('#' + this.lastOpenedPin);
+        this.closeLastOpenedPinTooltip();
+        this.removeUnsavedPin(lastOpenedPinElement);
+        this.lastOpenedPin = null;
+        this.lastOpenedPinChanged();
+    }
+
+    /**
+     * Create a span with a pin data
+     *
+     * @param pinForm The pin data container element
+     * @returns {string} created span
+     */
+    createSavedPinData(pinForm) {
+        let product = pinForm.querySelector('.product');
+        let store = pinForm.querySelector('.store');
+        let tags = pinForm.querySelector('.tags');
+        let link = pinForm.querySelector('.link');
+
+        let storeLink = '';
+        if (link.value && (link.value.startsWith("http://") || link.value.startsWith("https://"))) {
+            storeLink = '<i class="icn icn-basket"></i><a href="' + link.value + '" data-disable-preview="true" target="_blank">Go to store</a>';
+        } else if (link.value) {
+            storeLink = '<i class="icn icn-basket"></i><a href="http://' + link.value + '" data-disable-preview="true" target="_blank">Go to store</a>';
+        }
+
+        let response = '<span data-pin-id="' + pinForm.getAttribute("data-pin-id") + '" class="saved-pin-data" data-product="' + product.value + '" data-store="'
+            + store.value + '" data-tags="' + tags.value + '" data-link="' + link.value + '">'
+            + '<p><strong>Product name: </strong>' + product.value + '</p>'
+            + '<p><strong>Store name: </strong>' + store.value + '</p>'
+            + storeLink
+            + '</span>';
+        return response;
+    }
+
+    /**
+     * Crate a row to the pin row list a pin data
+     *
+     * @param selectedPointId The pin id
+     * @param pinForm The pin data container element
+     * @returns {string} created row
+     */
+    createSavedPinRow(selectedPointId, formData) {
+        let storeLink = '';
+        if (formData.link.value && (formData.link.value.startsWith("http://") || formData.link.value.startsWith("https://"))) {
+            storeLink = '<a href="' + formData.link.value + '" data-disable-preview="true" class="pin-rows-go-to-store" target="_blank"><i class="go-to-store-edit icn icn-basket"></i></a>';
+        } else if (formData.link.value) {
+            storeLink = '<a href="http://' + formData.link.value + '" data-disable-preview="true" class="pin-rows-go-to-store" target="_blank"><i class="go-to-store-edit icn icn-basket"></i></a>';
+        }
+
+        return '<li id="' + selectedPointId + 'Row" data-rel="' + selectedPointId + '" class="pin-row-list-element" dynamicClick="togglePinTooltipOutInWYSIWYGModeByRow()">'
+            + '<a class="add-pin" dynamicClick="togglePinTooltipOutInWYSIWYGModeByRow()"><i class="icn icn-add_pin" dynamicClick="togglePinTooltipOutInWYSIWYGModeByRow()"></i></a>'
+            + '<strong dynamicClick="togglePinTooltipOutInWYSIWYGModeByRow()">' + formData.product.value + '</strong>'
+            + formData.store.value
+            + storeLink
+            + '<a href="javascript:void(0);" data-disable-preview="true" dynamicClick="removeSavedPinByRow()" class="pin-rows-edit-pin"><i dynamicClick="removeSavedPinByRow()" class="go-to-store-edit icn icn-close"></i></a>'
+            + '<a href="javascript:void(0);" data-disable-preview="true" dynamicClick="editPinByRow()" class="pin-rows-edit-pin"><i dynamicClick="editPinByRow()" class="go-to-store-edit icn icn-edit_icon"></i></a>'
+            + '</li>';
+    }
+
+    /**
+     * Insert or change a pin data row
+     *
+     * @param pinForm The pin data container element
+     */
+    insertSavedPinRow(selectedPoint, formData, isUpdatePin) {
+        let selectedPointId = selectedPoint.getAttribute("id");
+        let pinImageRow = this.closestElementByClass(selectedPoint, 'pinnable-image-row');
+
+        let pinRowList = pinImageRow.querySelector('.pin-row-list');
+        let newPinRow = this.createSavedPinRow(selectedPointId, formData);
+        let oldPinRow = this.elementRef.nativeElement.querySelector('#' + selectedPointId + 'Row');
+
+        if (isUpdatePin && oldPinRow) {
+            oldPinRow.insertAdjacentHTML('afterend', newPinRow);
+            oldPinRow.remove();
+            return;
+        }
+        pinRowList.insertAdjacentHTML('beforeend', newPinRow);
+    }
+
+    /**
+     * Save a pin data
+     *
+     * @param event savePin click event
+     * return {void}
+     */
+    savePin(pinForm) {
+        let selectedPoint = this.closestElementByClass(pinForm, 'cd-single-point');
+        if (!pinForm || !selectedPoint) {
+            return;
+        }
+
+        let parentPinnableImgRow = this.closestElementByClass(pinForm, 'pinnable-image-row');
+        if (parentPinnableImgRow) {
+            this.hideMeditorTooltip(parentPinnableImgRow);
+        }
+
+        let savedPinData = this.createSavedPinData(pinForm);
+        let pinFormParent = pinForm.parentNode;
+
+        let isUpdatePin = this.isUpdatedPin(selectedPoint);
+        let formData = {
+            'product': pinForm.querySelector('.product'),
+            'store': pinForm.querySelector('.store'),
+            'tags': pinForm.querySelector('.tags'),
+            'link': pinForm.querySelector('.link')
+        };
+
+        pinFormParent.removeChild(pinForm);
+        pinFormParent.insertAdjacentHTML('afterbegin', savedPinData);
+
+        setTimeout(() => {
+            this.insertSavedPinRow(selectedPoint, formData, isUpdatePin);
+            // this.refreshMediumEditor(); // TODO ???
+        }, 0);
+    }
+
+    /**
+     * Check the pin is saved
+     *
+     * @param selectedPoint Actual pin
+     * @returns {boolean} true if the actual pin is saved
+     */
+    isSavedPin(selectedPoint) {
+        if (!selectedPoint) {
+            return false;
+        }
+        let savedData = selectedPoint.querySelector('.saved-pin-data');
+        if (savedData && savedData.tagName === "SPAN") {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Show saved pin tooltip menu
+     *
+     * @param selectedPoint the pin
+     */
+    showSavedPin(target) {
+        let selectedPoint;
+        let selectedPointA;
+        if (!this.elementHasClass(target, 'cd-single-point')) {
+            selectedPointA = target;
+            selectedPoint = this.closestElementByClass(selectedPointA, 'cd-single-point');
+        } else {
+            selectedPoint = target;
+            selectedPointA = this.elementRef.nativeElement.querySelector('#' + selectedPoint.getAttribute('id') + ' a');
+        }
+
+        if (!this.isSavedPin(selectedPoint)) {
+            return;
+        }
+
+        this.removeLastOpenedUnsavedPin();
+        this.openPinTooltip(selectedPoint);
+        this.setPinTooltipDirection(selectedPointA);
+    }
+
+    /**
+     * Hide saved pin tooltip menu
+     *
+     * @param selectedPoint the pin
+     */
+    hideSavedPin(target) {
+        let selectedPoint;
+        if (!this.elementHasClass(target, 'cd-single-point')) {
+            selectedPoint = this.closestElementByClass(target, 'cd-single-point');
+        } else {
+            selectedPoint = target;
+        }
+
+        if (!this.isSavedPin(selectedPoint)) {
+            return;
+        }
+
+        this.closePinTooltip(selectedPoint);
+    }
+
+    /**
+     * Return selectedPoint (pin) by row click event
+     *
+     * @param event Row click event
+     * @returns {Element|HTMLElement|any} selectedPoint or false
+     */
+    getPinByRowClick(event) {
+        let targetElement = event.target;
+
+        if (!this.elementHasClass(targetElement, 'pin-row-list-element')) {
+            targetElement = this.closestElementByClass(targetElement, 'pin-row-list-element');
+        }
+
+        let selectedPoint = this.elementRef.nativeElement.querySelector('#' + targetElement.getAttribute("data-rel"));
+        if (!selectedPoint) {
+            return false;
+        }
+
+        return selectedPoint;
+    }
+
+    /**
+     * Edit saved pin data by row click event
+     *
+     * @param event Edit button click event
+     */
+    editPinByRow(event) {
+        if (!this.isWaitingForPin) {
+            return;
+        }
+
+        let parentPinnableImgRow = this.closestElementByClass(event.target, 'pinnable-image-row');
+        if (parentPinnableImgRow) {
+            this.hideMeditorTooltip(parentPinnableImgRow);
+        }
+
+        let selectedPoint = this.getPinByRowClick(event);
+        if (selectedPoint) {
+            this.editPin(selectedPoint);
+        }
+    }
+
+    /**
+     * Edit saved pon data
+     *
+     * @param selectedPoint The pin
+     */
+    editPin(selectedPoint) {
+        if (!this.isWaitingForPin) {
+            return;
+        }
+
+        let savedPinData = selectedPoint.querySelector('.saved-pin-data');
+        if (!savedPinData) {
+            return;
+        }
+
+        this.removeLastOpenedUnsavedPin();
+
+        let savedData = {
+            'product': savedPinData.getAttribute('data-product'),
+            'store': savedPinData.getAttribute('data-store'),
+            'tags': savedPinData.getAttribute('data-tags'),
+            'link': savedPinData.getAttribute('data-link')
+        };
+
+        let updateForm = this.createPinForm(savedPinData.getAttribute("data-pin-id"), savedData);
+
+        let savedPinParent = savedPinData.parentNode;
+        savedPinData.remove();
+        savedPinParent.insertAdjacentHTML('afterbegin', updateForm);
+
+        this.openPinTooltip(selectedPoint);
+
+        // this.refreshMediumEditor(); // TODO
+    }
+
+    /**
+     * Decide from a pin form, that is an update form or not
+     *
+     * @param selectedPoint A pin
+     * @returns {boolean} true if this form is an update form otherwise false
+     */
+    isUpdatedPin(selectedPoint) {
+        if (!selectedPoint) {
+            return false;
+        }
+
+        if (this.elementExist('.saved-pin-update', selectedPoint)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Close pin editor without save
+     *
+     * @param updatePinForm The pin update form
+     */
+    closePinEditor(selectedPoint) {
+        let updatePinForm = selectedPoint.querySelector('.saved-pin-update');
+        updatePinForm.querySelector('.product').value = updatePinForm.getAttribute('data-product');
+        updatePinForm.querySelector('.store').value = updatePinForm.getAttribute('data-store');
+        updatePinForm.querySelector('.tags').value = updatePinForm.getAttribute('data-tags');
+        updatePinForm.querySelector('.link').value = updatePinForm.getAttribute('data-link');
+
+        this.savePin(updatePinForm);
+    }
+
+    /**
+     * Remove saved pin
+     *
+     * @param selectedPoint The removable pin
+     */
+    removeSavedPin(selectedPoint) {
+        if (!this.isWaitingForPin) {
+            return;
+        }
+
+        let selectedRow = this.elementRef.nativeElement.querySelector('#' + selectedPoint.getAttribute('id') + 'Row');
+        if (selectedRow) {
+            selectedRow.parentNode.removeChild(selectedRow);
+        }
+        selectedPoint.parentNode.removeChild(selectedPoint);
+
+        // this.refreshMediumEditor(); // TODO ???
+
+        if (this.lastOpenedPin = selectedPoint.getAttribute('id')) {
+            this.lastOpenedPin = null;
+            this.lastOpenedPinChanged();
+        }
+    }
+
+    /**
+     * Remove saved pin by row click event
+     *
+     * @param event Remove button click event
+     */
+    removeSavedPinByRow(event) {
+        if (!this.isWaitingForPin) {
+            return;
+        }
+
+        let parentPinnableImgRow = this.closestElementByClass(event.target, 'pinnable-image-row');
+        if (parentPinnableImgRow) {
+            this.hideMeditorTooltip(parentPinnableImgRow);
+        }
+
+        let selectedPoint = this.getPinByRowClick(event);
+        if (selectedPoint) {
+            this.removeSavedPin(selectedPoint);
+        }
+    }
+
+    /* Edit \ Create pin end */
+
+    /* Utils method start */
+
+    /**
+     * Check an element has a classList
+     *
+     * @param element actual element
+     * @returns {boolean} True if the actual element has a classList otherwise false
+     */
+    elementHasClassList(element) {
+        if (element && element.classList) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check an element has a specific class
+     *
+     * @param element actual element
+     * @param className specific class
+     * @returns {boolean} True if the actual element has a specific class otherwise false
+     */
+    elementHasClass(element, className) {
+        if (this.elementHasClassList(element) && element.classList.contains(className)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check an element has a specific attribute
+     *
+     * @param element actual element
+     * @param attribute specific attribute
+     * @returns {boolean} True if the actual element ha a specific attribute otherwise false
+     */
+    elementHasAttribute(element, attribute) {
+        if (element.getAttribute && element.getAttribute(attribute) !== undefined) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check an element is exist
+     *
+     * @param selector the element (css) selector
+     * @param parentElement parent element
+     * @returns {boolean} True if the element is exist otherwise false
+     */
+    elementExist(selector, parentElement = null) {
+        let element = false;
+        if (parentElement !== null) {
+            element = parentElement.querySelector(selector);
+        } else {
+            element = this.elementRef.nativeElement.querySelector(selector);
+        }
+
+        if (element) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Return actual element closest element by tagName if that is exist
+     *
+     * @param element
+     * @param tagname
+     * @returns {any}
+     */
+    closestElementByTagname(element, tagname) {
+        while (element && element.parentNode) {
+            let parent = element.parentNode;
+            if (parent && parent.tagName === tagname) {
+                return parent;
+            }
+            element = parent;
+        }
+        return false;
+    }
+
+    /**
+     * Return actual element closest element by class if that is exist
+     *
+     * @param element Actual element
+     * @param selector Class selector
+     * @returns {any} Closest element if that is exist or false
+     */
+    closestElementByClass(element, selector) {
+        while (element.parentNode) {
+            let parent = element.parentNode;
+            if (this.elementHasClass(parent, selector)) {
+                return parent;
+            }
+            element = parent;
+        }
+        return false;
+    }
+    /* Utils method end */
 
 }

@@ -1,4 +1,4 @@
-import { Component, Input, forwardRef, ElementRef, ViewChild, OnChanges, OnInit, OnDestroy, ViewEncapsulation, Output, EventEmitter, Renderer } from '@angular/core';
+import { Component, Input, forwardRef, ElementRef, ViewChild, OnChanges, OnInit, OnDestroy, ViewEncapsulation, Output, EventEmitter, Renderer, AfterViewInit, AfterViewChecked } from '@angular/core';
 import * as MediumEditor from './src/MediumEditor/js/medium-editor';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
@@ -48,6 +48,11 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
     @Input() options: any;
     @Input() placeholder: string;
+    @Input() mode: string;
+    @Input() thumbImageUrl;
+    @Input() cleanAttrs;
+    @Input() cleanTags;
+    @Input() unwrapTags;
 
     @Input()
     set images(images) {
@@ -67,6 +72,50 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         }
     }
 
+    @Input()
+    set restore(restore) {
+        if (restore > 0) {
+            this.restoreImagesOptionsHTML();
+        }
+    }
+
+    @Input()
+    set pastedEmbedElem(pastedEmbedElem) {
+        if (pastedEmbedElem && pastedEmbedElem.type && pastedEmbedElem.elem && pastedEmbedElem.target) {
+            if (pastedEmbedElem.type == 'append') {
+                pastedEmbedElem.target.appendChild(pastedEmbedElem.elem);
+            } else if (pastedEmbedElem.type == 'insert') {
+                pastedEmbedElem.target.insertAdjacentHTML('beforebegin', pastedEmbedElem.elem.innerHTML);
+            }
+        }
+    }
+
+    @Input()
+    set removeImage(removeImage) {
+        if (removeImage) {
+            this.deletePicture(removeImage);
+        }
+    }
+
+    @Input()
+    set uploadedImageData(uploadedImageData) {
+        if (uploadedImageData) {
+            if (this.featuredImage === uploadedImageData.id) {
+                this.featuredImage = uploadedImageData.data.id;
+                this.featuredImageChanged();
+            }
+            let pinnableContainer = this.elementRef.nativeElement.querySelector('div[data-img-original-id="'+uploadedImageData.id+'"]');
+            if (pinnableContainer) {
+                pinnableContainer.setAttribute('data-img-original-id', uploadedImageData.data.id);
+                let image = pinnableContainer.querySelector('.post-image');
+                image.setAttribute('data-original-id', uploadedImageData.data.id);
+                pinnableContainer.setAttribute('data-width', uploadedImageData.data.resized_width);
+                pinnableContainer.setAttribute('data-height', uploadedImageData.data.resized_height);
+
+            }
+        }
+    }
+
     // Triggering events
     @Output() changeEvent = new EventEmitter<any>();
     @Output() focusEvent = new EventEmitter<any>();
@@ -79,6 +128,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     @Output() featuredImageChangedEvent = new EventEmitter<any>();
     @Output() lastOpenedPinChangedEvent = new EventEmitter<any>();
     @Output() imageIsNotPinnableEvent = new EventEmitter<any>();
+    @Output() pasteEmbedMediaEvent = new EventEmitter<any>();
+    @Output() pasteImageEvent = new EventEmitter<any>();
 
     propagateChange = (_: any) => { };
     editor: any;
@@ -97,6 +148,12 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     globalClickListenFunc: Function; // Global click event listeners
     globalMouseOverListenFunc: Function; // Global mouseover event listeners
     globalMouseOutListenFunc: Function; // Global mouseout event listeners
+    dragStartListeners: Function;
+    dropListeners: Function;
+
+    isImageOptionMenuRestored = false; // Image option menus is restored (only edit)
+
+    lastDraggedElement: any = null;
 
     constructor(
         private elementRef: ElementRef,
@@ -118,6 +175,19 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
         this.setGlobalEventListeners();
         this.registerEventListeners();
+        this.setDragNDropListeners();
+    }
+
+    ngAfterViewInit() {
+        setTimeout(() => {
+            this.editor.elements[0].click();
+        }, 2400);
+    }
+
+    ngAfterViewChecked() {
+        if (this.mode && this.mode === "edit" && !this.isImageOptionMenuRestored) {
+            this.restoreImagesOptionsHTML();
+        }
     }
 
     ngOnDestroy() {
@@ -126,37 +196,83 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         }
 
         this.globalClickListenFunc();
+        this.globalMouseOverListenFunc();
+        this.globalMouseOutListenFunc();
+        this.dragStartListeners();
+        this.dropListeners();
     }
 
     ngOnChanges(changes: any) {
         this.propagateChange(changes);
     }
 
+    /**
+     * Restore image options menu, button and add pin tooltip to edit post
+     */
+    restoreImagesOptionsHTML() {
+        let mediumEditor = this.editor.elements[0]; // this.elementRef.nativeElement.querySelector('.medium-editor-element');
+        if (!mediumEditor) {
+            return;
+        }
+
+        let pinnableImageRows = mediumEditor.querySelectorAll('.pinnable-image-row');
+        if (!pinnableImageRows || pinnableImageRows.length < 1) {
+            return;
+        }
+
+        this.isImageOptionMenuRestored = true;
+
+        for (let pinnableImageRow of pinnableImageRows) {
+            let actualId = pinnableImageRow.getAttribute('data-img-id');
+            let pinListDiv = pinnableImageRow.querySelector('.pin-list');
+            let imageOptionDataHtml = this.generateImageOptionDataHtml(actualId);
+            pinListDiv.insertAdjacentHTML('beforeend', imageOptionDataHtml);
+
+            let postImage = pinnableImageRow.querySelector('.post-image');
+            if (parseInt(postImage.getAttribute('data-id'), 10) > this.imageCounter) {
+                this.imageCounter = parseInt(postImage.getAttribute('data-id'), 10);
+            }
+        }
+
+        let imageCaptions = this.elementRef.nativeElement.querySelectorAll('.img-caption');
+        if (imageCaptions && imageCaptions.length > 0) {
+            for (let imageCaption of imageCaptions) {
+                imageCaption.setAttribute('contenteditable', true);
+            }
+        }
+
+        this.imageCounter += 1;
+        // setTimeout(() => {
+        //     this.refreshMediumEditor();
+        // }, 0);
+    }
+
     registerEventListeners() {
-        this.editor.subscribe('editableInput', (data: any, element: any) => {
+        this.editor.subscribe('editableInput', (event: any, element: any) => {
             let value = this.editor.elements[0].innerHTML;
             this.ngOnChanges(value);
-            this.changeEvent.emit({'event': data, 'target': element});
+            this.changeEvent.emit({'event': event, 'target': element});
         });
-        this.editor.subscribe('focus', (data: any, element: any) => {
-            this.focusEvent.emit({'event': data, 'target': element});
+        this.editor.subscribe('focus', (event: any, element: any) => {
+            this.focusEvent.emit({'event': event, 'target': element});
         });
-        this.editor.subscribe('editableKeyup', (data: any, element: any) => {
-            this.addMediaInsertRow(data);
-            this.setEditorKeyupEventListeners(data);
-            this.keyUpEvent.emit({'event': data, 'target': element});
+        this.editor.subscribe('editableKeyup', (event: any, element: any) => {
+            this.addMediaInsertRow(event);
+            this.setEditorKeyupEventListeners(event);
+            this.keyUpEvent.emit({'event': event, 'target': element});
         });
-        this.editor.subscribe('editableClick', (data: any, element: any) => {
-            this.addMediaInsertRow(data);
-            this.setEditorClickEventListeners(data);
-            this.clickEvent.emit({'event': data, 'target': element});
+        this.editor.subscribe('editableClick', (event: any, element: any) => {
+            this.addMediaInsertRow(event);
+            this.setEditorClickEventListeners(event);
+            this.clickEvent.emit({'event': event, 'target': element});
         });
-        this.editor.subscribe('blur', (data: any, element: any) => {
-            this.setEditorBlurEventListener(data);
-            this.blurEvent.emit({'event': data, 'target': element});
+        this.editor.subscribe('blur', (event: any, element: any) => {
+            this.setEditorBlurEventListener(event);
+            this.blurEvent.emit({'event': event, 'target': element});
         });
-        this.editor.subscribe('editablePaste', (data: any, element: any) => {
-            this.pasteEvent.emit({'event': data, 'target': element});
+        this.editor.subscribe('editablePaste', (event: any, element: any) => {
+            this.setPasteEventListeners(event);
+            this.pasteEvent.emit({'event': event, 'target': element});
         });
 
     }
@@ -206,6 +322,53 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         });
     }
 
+    setDragNDropListeners() {
+        this.dragStartListeners = this.renderer.listen(this.editor.elements[0], 'dragstart', (event) => {
+            console.log('dragstart');
+            let target = event.target;
+            if (this.elementHasClass(target, 'pinnable-image-row')) {
+                this.lastDraggedElement = target;
+            } else if (this.closestElementByClass(event.target, 'pinnable-image-row')) {
+                this.lastDraggedElement = this.closestElementByClass(event.target, 'pinnable-image-row')
+            } else {
+                this.lastDraggedElement = null;
+                return;
+            }
+        });
+
+        this.dropListeners = this.renderer.listen(this.editor.elements[0], 'drop', (event) => {
+            event.preventDefault();
+
+            let target = event.target;
+            if (this.closestElementByClass(target, 'medium-editor-element') == false && (!target.classList || !target.classList.contains('medium-editor-element'))) {
+                return;
+            }
+
+            if (this.closestElementByClass(target, 'pinnable-image-row') != false || (target.classList && target.classList.contains('pinnable-image-row'))) {
+                return;
+            }
+
+            let range = null;
+            if (document.caretRangeFromPoint) { // Chrome
+                range = document.caretRangeFromPoint(event.clientX, event.clientY);
+            } else if (event.rangeParent) { // Firefox
+                range = document.createRange();
+                range.setStart(event.rangeParent, event.rangeOffset);
+            }
+            let sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.execCommand('insertHTML', false, this.lastDraggedElement.outerHTML);
+            sel.removeAllRanges();
+            this.lastDraggedElement.remove();
+            this.lastDraggedElement = null;
+
+            this.setImageDefaultState();
+
+            // this.refreshMediumEditor(); // TODO ???
+        });
+    }
+
     setEditorBlurEventListener(event) {
         if (this.elementHasClass(event.target, 'img-caption')) {
             this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
@@ -222,6 +385,51 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             this.validateUrl(event.target);
         } else if (this.elementHasClass(event.target, 'store')) {
             this.validateStore(event.target);
+        }
+    }
+
+    setPasteEventListeners(event) {
+        let clipboardData = this.getClipboardContent(event);
+        if (clipboardData['text/html']) {
+            event.preventDefault();
+
+            if (this.elementHasClass(event.target, 'img-caption')
+                || this.elementHasClass(event.target, 'pinnable-image-row')
+                || this.closestElementByClass(event.target, 'pinnable-image-row')
+            ) {
+                return;
+            }
+
+            let elem = document.createElement("div");
+            elem.innerHTML = clipboardData['text/html'];
+
+            let allElements = elem.querySelectorAll('*');
+            for (let i = 0; i < allElements.length; i += 1) {
+                let workEl = allElements[i];
+
+                if ('a' === workEl.nodeName.toLowerCase()) {
+                    workEl.setAttribute('target', '_blank');
+                }
+
+                this.cleanupAttrs(workEl);
+                this.cleanupTags(workEl);
+                this.unwrap(workEl);
+            }
+
+            this.changeImageSrc(elem.getElementsByTagName('img'));
+
+            if (event.target.classList && event.target.classList.contains('medium-editor-element')) {
+                event.target.appendChild(elem);
+            } else {
+                event.target.insertAdjacentHTML('beforebegin', elem.innerHTML);
+            }
+        } else if (this.elementHasClass(event.target, 'img-caption')) {
+            this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+        } else if (clipboardData['text/plain']) {
+            if (this.isAnYoutubeUrl(clipboardData['text/plain'])) {
+                event.preventDefault();
+                this.pasteEmbedMediaEvent.emit({'event': event, 'data': clipboardData['text/plain']});
+            }
         }
     }
 
@@ -304,9 +512,9 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             } else if (this.options.toolbar.buttons[i] === 'colorPicker' && this.options.extensions) {
                 let colorPickerExtensionService = new ColorPickerExtension();
                 this.options.extensions['colorPicker'] = colorPickerExtensionService.getPickerExtension();
-            } else if (this.options.toolbar.buttons[i] === 'cleanFormatExtension' && this.options.extensions && "cleanFormatExtension" in this.options.extensions) {
+            } else if (this.options.toolbar.buttons[i] === 'cleanFormatExtension' && this.options.extensions) {
                 let cleanFormatExtensionService = new CleanFormatExtension();
-                cleanFormatExtensionService.setCleanupAttrs(this.options.extensions['cleanFormatExtension']);
+                cleanFormatExtensionService.setCleanupAttrs(this.cleanAttrs);
                 this.options.extensions['cleanFormatExtension'] = cleanFormatExtensionService.getCleanFormatExtension();
             } else if ((typeof this.options.toolbar.buttons[i]) == 'string' && this.options.toolbar.buttons[i].startsWith('dividerExtension') && this.options.extensions) {
                 let dividerExtensionService = new DividerExtension();
@@ -1252,12 +1460,12 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         pinList.insertAdjacentHTML('beforeend', newPin);
         // this.refreshMediumEditor(); // TODO ???
 
-        setTimeout(() => {
-            let selectedPoint = this.elementRef.nativeElement.querySelector('#' + pinId);
-            let selectedPointA = this.elementRef.nativeElement.querySelector('#' + pinId + ' a');
-            this.openPinTooltip(selectedPoint);
-            this.setPinTooltipDirection(selectedPointA);
-        }, 0);
+        // setTimeout(() => {
+        let selectedPoint = this.elementRef.nativeElement.querySelector('#' + pinId);
+        let selectedPointA = this.elementRef.nativeElement.querySelector('#' + pinId + ' a');
+        this.openPinTooltip(selectedPoint);
+        this.setPinTooltipDirection(selectedPointA);
+        // }, 0);
 
     }
 
@@ -1394,10 +1602,10 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         pinFormParent.removeChild(pinForm);
         pinFormParent.insertAdjacentHTML('afterbegin', savedPinData);
 
-        setTimeout(() => {
-            this.insertSavedPinRow(selectedPoint, formData, isUpdatePin);
-            // this.refreshMediumEditor(); // TODO ???
-        }, 0);
+        // setTimeout(() => {
+        this.insertSavedPinRow(selectedPoint, formData, isUpdatePin);
+        // this.refreshMediumEditor(); // TODO ???
+        // }, 0);
     }
 
     /**
@@ -1618,6 +1826,117 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     }
 
     /* Edit \ Create pin end */
+
+    /* Clipboard data cleaning start */
+
+    getClipboardContent(event) {
+        let dataTransfer = event.clipboardData,
+            data = {};
+
+        if (!dataTransfer) {
+            return data;
+        }
+
+        // Use old WebKit/IE API
+        if (dataTransfer.getData) {
+            let legacyText = dataTransfer.getData('Text');
+            if (legacyText && legacyText.length > 0) {
+                data['text/plain'] = legacyText;
+            }
+        }
+
+        if (dataTransfer.types) {
+            for (let i = 0; i < dataTransfer.types.length; i++) {
+                let contentType = dataTransfer.types[i];
+                data[contentType] = dataTransfer.getData(contentType);
+            }
+        }
+
+        return data;
+    }
+
+    changeImageSrc(images) {
+        for(var i=0; i < images.length; i++){
+            let btoaHash = btoa(images[i].src);
+            let newUrl = this.thumbImageUrl + btoaHash;
+            //resized_height, resized_width
+            images[i].outerHTML = this.generateImageContainer({
+                'src': newUrl,
+                'id': btoaHash
+            });
+
+            this.uploadImageByUrl(newUrl, btoaHash);
+        }
+    }
+
+    uploadImageByUrl(url, id) {
+        this.pasteImageEvent.emit({'url': url, 'id': id});
+    }
+
+    cleanupAttrs(element) {
+        if (element.nodeType != 1
+            || this.closestElementByClass(element, 'pinnable-image-row')
+            || this.elementHasClass(element, 'pinnable-image-row')
+        ) {
+            return;
+        }
+        this.cleanAttrs.forEach(function (attr) {
+            element.removeAttribute(attr);
+        });
+    }
+
+    cleanupTags(element) {
+        if (this.cleanTags.indexOf(element.nodeName.toLowerCase()) !== -1) {
+            console.log(element);
+            if (element.nodeName.toLowerCase() === 'a' && element.querySelector('img')) {
+                let image = element.querySelector('img');
+                element.parentNode.insertBefore(image, element);
+                element.parentNode.removeChild(element);
+            } else if (element.nodeName.toLowerCase() === 'a') {
+                let replacementNode = document.createElement('a');
+                replacementNode.setAttribute('href', element.getAttribute('href'));
+                replacementNode.setAttribute('target', '_blank');
+                //let replacementNode = document.createElement('p');
+                replacementNode.innerHTML = element.textContent;
+                element.parentNode.insertBefore(replacementNode, element);
+                element.parentNode.removeChild(element);
+            } else {
+                element.parentNode.removeChild(element);
+            }
+        }
+    }
+
+    unwrap(element) {
+        if (this.unwrapTags.indexOf(element.nodeName.toLowerCase()) !== -1) {
+            var fragment = document.createDocumentFragment(),
+                nodes = Array.prototype.slice.call(element.childNodes);
+
+            // cast nodeList to array since appending child
+            // to a different node will alter length of el.childNodes
+            for (var i = 0; i < nodes.length; i++) {
+                fragment.appendChild(nodes[i]);
+            }
+
+            if (fragment.childNodes.length) {
+                element.parentNode.replaceChild(fragment, element);
+            } else {
+                element.parentNode.removeChild(element);
+            }
+        }
+    }
+
+    isAnYoutubeUrl(text) {
+        let YOUTUBE_REGEXP =
+            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be|y2u\.be)\/watch\?v=([^&]+)$/i;
+
+        if (YOUTUBE_REGEXP.test(text)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /* Clipboard data cleaning end */
 
     /* Utils method start */
 

@@ -116,6 +116,13 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         }
     }
 
+    @Input()
+    set elementHeight(elementHeight) {
+        if (elementHeight) {
+            this.addElementHeightToAddMediaPosition = elementHeight;
+        }
+    }
+
     // Triggering events
     @Output() changeEvent = new EventEmitter<any>();
     @Output() focusEvent = new EventEmitter<any>();
@@ -154,6 +161,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     isImageOptionMenuRestored = false; // Image option menus is restored (only edit)
 
     lastDraggedElement: any = null;
+
+    addElementHeightToAddMediaPosition = 0;
 
     constructor(
         private elementRef: ElementRef,
@@ -257,14 +266,14 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             this.focusEvent.emit({'event': event, 'target': element});
         });
         this.editor.subscribe('editableKeyup', (event: any, element: any) => {
+            this.keyUpEvent.emit({'event': event, 'target': element});
             this.addMediaInsertRow(event);
             this.setEditorKeyupEventListeners(event);
-            this.keyUpEvent.emit({'event': event, 'target': element});
         });
         this.editor.subscribe('editableClick', (event: any, element: any) => {
+            this.clickEvent.emit({'event': event, 'target': element});
             this.addMediaInsertRow(event);
             this.setEditorClickEventListeners(event);
-            this.clickEvent.emit({'event': event, 'target': element});
         });
         this.editor.subscribe('blur', (event: any, element: any) => {
             this.setEditorBlurEventListener(event);
@@ -376,7 +385,6 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     }
 
     setEditorKeyupEventListeners(event) {
-        this.addMediaInsertRow(event);
         if (this.elementHasClass(event.target, 'img-caption')) {
             this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
         } else if (this.elementHasClass(event.target, 'product')) {
@@ -495,7 +503,6 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             }
         }
 
-        this.addMediaInsertRow(event);
         if (this.elementHasClass(event.target, 'img-caption')) {
             this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
         }
@@ -625,7 +632,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         var X = targetElementXPosition - meditorElementXPosition;
         return {
             'xpos': X - 40,
-            'ypos': targetElementYPosition + mediumEditorScrollTop - 125
+            'ypos': targetElementYPosition + mediumEditorScrollTop - 125 - this.addElementHeightToAddMediaPosition
         }
     }
 

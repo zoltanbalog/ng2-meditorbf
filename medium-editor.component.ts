@@ -506,19 +506,39 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             return;
         }
         for (let i = 0; i < this.options.toolbar.buttons.length; i++) {
-            if (this.options.toolbar.buttons[i] === 'headingExtension' && this.options.extensions) {
+            if (this.options.toolbar.buttons[i] === 'headingExtension') {
                 let headingExtensionService = new HeadingExtension();
-                this.options.extensions['headingExtension'] = headingExtensionService.getHeadingExtension();
-            } else if (this.options.toolbar.buttons[i] === 'colorPicker' && this.options.extensions) {
+                if (this.options.extensions) {
+                    this.options.extensions['headingExtension'] = headingExtensionService.getHeadingExtension();
+                } else {
+                    this.options.extensions = {'headingExtension': headingExtensionService.getHeadingExtension()};
+                }
+            } else if (this.options.toolbar.buttons[i] === 'colorPicker') {
                 let colorPickerExtensionService = new ColorPickerExtension();
-                this.options.extensions['colorPicker'] = colorPickerExtensionService.getPickerExtension();
-            } else if (this.options.toolbar.buttons[i] === 'cleanFormatExtension' && this.options.extensions) {
+
+                if (this.options.extensions) {
+                    this.options.extensions['colorPicker'] = colorPickerExtensionService.getPickerExtension();
+                } else {
+                    this.options.extensions = {'colorPicker': colorPickerExtensionService.getPickerExtension()};
+                }
+            } else if (this.options.toolbar.buttons[i] === 'cleanFormatExtension') {
                 let cleanFormatExtensionService = new CleanFormatExtension();
                 cleanFormatExtensionService.setCleanupAttrs(this.cleanAttrs);
-                this.options.extensions['cleanFormatExtension'] = cleanFormatExtensionService.getCleanFormatExtension();
-            } else if ((typeof this.options.toolbar.buttons[i]) == 'string' && this.options.toolbar.buttons[i].startsWith('dividerExtension') && this.options.extensions) {
+
+                if (this.options.extensions) {
+                    this.options.extensions['cleanFormatExtension'] = cleanFormatExtensionService.getCleanFormatExtension();
+                } else {
+                    this.options.extensions = {'cleanFormatExtension': cleanFormatExtensionService.getCleanFormatExtension()};
+                }
+            } else if ((typeof this.options.toolbar.buttons[i]) == 'string' && this.options.toolbar.buttons[i].startsWith('dividerExtension')) {
                 let dividerExtensionService = new DividerExtension();
-                this.options.extensions[this.options.toolbar.buttons[i]] = dividerExtensionService.getDividerExtension();
+                let key = this.options.toolbar.buttons[i];
+
+                if (this.options.extensions) {
+                    this.options.extensions[key] = dividerExtensionService.getDividerExtension();
+                } else {
+                    this.options.extensions = {key: dividerExtensionService.getDividerExtension()};
+                }
             }
         }
     }

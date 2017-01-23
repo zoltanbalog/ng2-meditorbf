@@ -5813,6 +5813,11 @@ MediumEditor.extensions = {};
          */
         standardizeSelectionStart: false,
 
+        /* showAlways: [boolean]
+         * enable/disable the toolbar always displaying.
+         */
+        showAlways: false,
+
         /* static: [boolean]
          * enable/disable the toolbar always displaying in the same location
          * relative to the medium-editor element.
@@ -6067,7 +6072,7 @@ MediumEditor.extensions = {};
         },
 
         hideToolbar: function () {
-            if (this.isDisplayed()) {
+            if (this.isDisplayed() && !this.showAlways) {
                 this.getToolbarElement().classList.remove('medium-editor-toolbar-active');
                 this.trigger('hideToolbar', {}, this.base.getFocusedElement());
             }
@@ -6275,7 +6280,7 @@ MediumEditor.extensions = {};
         // Positioning toolbar
 
         positionToolbarIfShown: function () {
-            if (this.isDisplayed()) {
+            if (this.isDisplayed() || this.showAlways) {
                 this.setToolbarPosition();
             }
         },

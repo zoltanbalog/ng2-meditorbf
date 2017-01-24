@@ -20,13 +20,13 @@ export class HeadingExtension {
                 init: function ()
                 {
                     let buttonHtml =
-                         '<button type="button"  id="headingDropdown" data-target="#" href="#" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">'
+                         '<button type="button"  id="headingDropdown">'
                             +'<span class="dropdown-button">'
                                 + '<span id="headingButtonText">' + self.defaultButtonText + '</span>'
                                 + '<i class="fa fa-chevron-down headingArrow"></i>'
                             +'</span>'
                         + '</button>'
-                        + '<ul class="dropdown-menu" aria-labelledby="headingDropdown">'
+                        + '<ul class="dropdown-menu">'
                             + '<li>'
                                 +'<button type="button" data-type="head1" class="head1">h1.Heading 1</button>'
                             +'</li>'
@@ -59,12 +59,19 @@ export class HeadingExtension {
 
                     let targetElement = event.target;
 
-                    if (targetElement.getAttribute('data-type') === 'head1') {
+                    if (targetElement.getAttribute('data-type') !== 'head1'
+                        && targetElement.getAttribute('data-type') !== 'head2'
+                        && targetElement.getAttribute('data-type') !== 'head3'
+                    ) {
+                        self.toggleDropdownMenu(targetElement);
+                    } else if (targetElement.getAttribute('data-type') === 'head1') {
                         document.getElementById('headingButtonText').innerHTML = 'h1.Heading 1';
                         this.execAction('append-h1');
+                        self.toggleDropdownMenu(targetElement);
                     } else if (targetElement.getAttribute('data-type') === 'head2') {
                         document.getElementById('headingButtonText').innerHTML = 'h2.Heading 2';
                         this.execAction('append-h3');
+                        self.toggleDropdownMenu(targetElement);
                     } else if (targetElement.getAttribute('data-type') === 'head3') {
                         document.getElementById('headingButtonText').innerHTML = 'h3.text';
                         let range = MediumEditor.selection.getSelectionRange(this.document);
@@ -74,7 +81,9 @@ export class HeadingExtension {
                         } else if (range.startContainer.parentNode.nodeName.toLocaleLowerCase() === 'h3') {
                             this.execAction('append-h3');
                         }
+                        self.toggleDropdownMenu(targetElement);
                     } else {
+                        self.toggleDropdownMenu(targetElement);
                         return;
                     }
                 },
@@ -99,6 +108,26 @@ export class HeadingExtension {
         });
 
         this.headingExtension = new customHeadingExtension();
+    }
+
+    getClosestElementByClass(element, className) {
+        while (element.parentNode) {
+            let parent = element.parentNode;
+            if (element && element.classList && element.classList.contains('dropdown')) {
+                return element;
+            }
+            element = parent;
+        }
+        return false;
+    }
+
+    toggleDropdownMenu(targetElement) {
+        let dropdownElement = this.getClosestElementByClass(targetElement, 'dropdown');
+        if (dropdownElement && dropdownElement.classList.contains('open')) {
+            dropdownElement.classList.remove('open');
+        } else if (dropdownElement) {
+            dropdownElement.classList.add('open');
+        }
     }
 
     getHeadingExtension() {

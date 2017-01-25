@@ -118,9 +118,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
     @Input()
     set elementHeight(elementHeight) {
-        if (elementHeight) {
-            this.addElementHeightToAddMediaPosition = elementHeight;
-        }
+        this.addElementHeightToAddMediaPosition = elementHeight;
     }
 
     // Triggering events

@@ -16,7 +16,7 @@ import { DividerExtension } from "./src/Extension/divider.extension";
     }],
     encapsulation: ViewEncapsulation.None,
     template: `
-        <div #host></div>
+        <div><div #host></div></div>
         <div class="floating-add-buttons" [class.active]="!isShowAddButtons"
              [class.insert-button-visibile]="!isInsertButtonHidden">
             <div class="floating-button" (click)="showAddButtons()">

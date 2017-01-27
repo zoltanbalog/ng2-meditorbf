@@ -1,0 +1,168 @@
+.add-media-button{
+    padding-top:12px;
+    background-color: #FAF8F6;
+    color: #C0B9A9;
+    min-height: 90px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    -webkit-box-shadow: 0 4px 0 #C0B9A9;
+    -moz-box-shadow: 0 4px 0 #C0B9A9;
+    box-shadow: 0 4px 0 #C0B9A9;
+    text-align:center;
+}
+.add-media-button-left{
+    margin-right:10px;
+    cursor: pointer;
+}
+.add-media-button-right{
+    margin-left:10px;
+    cursor: pointer;
+}
+.add-media-button-center{
+    margin-left:5px;
+    margin-right:5px;
+    cursor: pointer;
+}
+
+.floating-button {
+    display: inline-block;
+    text-align: center;
+    vertical-align: top;
+    z-index: 1;
+    border-radius: 50%;
+    background-color: #232435;
+    color: #FFFFFF;
+    width: 32px;
+    height: 32px;
+    position: relative;
+    overflow: hidden;
+    padding: 0;
+    margin-right: 10px;
+    cursor: pointer;
+    margin-bottom: 3px;
+    font-size: 8px;
+}
+
+.floating-button-close {
+    background-color: #4D4E6C;
+    margin-top: 5px;
+}
+
+.floating-button-label {
+    color: #C0B9A9;
+    font-size: 12px;
+    padding: 0;
+    text-align: center;
+}
+
+.hidden-floating-button {
+    display: none;
+}
+
+.floating-btn a{
+    cursor: pointer;
+    color: white;
+    width: 60px;
+    height: 60px;
+    box-shadow: none;
+    display: inline-block;
+    background-color: #C0B9A9;
+    border-radius: 50%;
+}
+
+.floating-btn i{
+    transition: transform .2s;
+    cursor: pointer;
+    color: #C0B9A9;
+    position: relative;
+    padding-left: 1px;
+    font-size: 30px;
+}
+
+.floating-btn i:hover{
+    color: #b1aa99;
+}
+
+
+.floating-btn p{
+    display: none;
+    font-size: 11px;
+    text-align: center;
+    line-height: 12px;
+    margin:0 0 0 -5px;
+    position: absolute;
+    padding: 5px;
+    color: white;
+    top: 4px;
+    left: -52px;
+    border-radius: 3px;
+    background: #232435;
+}
+
+.floating-btn i.icn-add_video + p{
+    left: -40px;
+}
+
+.floating-btn p:after{
+    display: block;
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: -4px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 5px 0 5px 4.7px;
+    border-color: transparent transparent transparent #232435;
+}
+
+.floating-btn i.icn-add_picture:hover + p, .floating-btn i.icn-add_video:hover + p{display: block;}
+
+.floating-add-buttons.active .floating-button>i{
+    transition: transform 250ms;
+    transform: rotate(0);
+}
+
+.floating-button>i{
+    transform: rotate(45deg);
+    transition: transform .1s;
+    position: absolute;
+    top: 13px;
+    left: 12px;
+}
+
+.floating-add-buttons ul.list-unstyled{
+    display: inline-block;
+}
+
+.floating-add-buttons.active ul.list-unstyled .floating-btn{
+    margin: 4px 0px -1px;
+    transform: scale(1);
+    transition-duration: .2s;
+}
+
+.floating-btn{
+    transform: scale(0);
+    transition-property: transform;
+}
+.floating-add-buttons.active ul.list-unstyled li:nth-child(2){
+    transition-delay: 30ms!important;
+}
+.floating-add-buttons.active ul.list-unstyled li:nth-child(3){
+    transition-delay: 60ms!important;
+}
+
+.add-post-section .floating-add-buttons {
+    width: 35px;
+    visibility: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+@media screen and (max-width: 767px) {
+    .floating-add-buttons.insert-button-visibile{
+        display: none;
+    }
+}

@@ -41,6 +41,8 @@ import { DividerExtension } from "./src/Extension/divider.extension";
     styleUrls: [
         './src/MediumEditor/css/font-awesome.min.css',
         './src/MediumEditor/css/medium-editor.css',
+        './src/MediumEditor/css/pins.css',
+        './src/MediumEditor/css/picture-options.css',
     ]
 })
 export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDestroy, OnChanges {

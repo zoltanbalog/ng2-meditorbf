@@ -1,0 +1,585 @@
+/* http://meyerweb.com/eric/tools/css/reset/
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+.cd-product div, .cd-product p,
+.cd-product a, .cd-product  ul,
+.cd-product  li, .cd-product form {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+
+.cd-product {
+    line-height: 1;
+}
+
+.cd-product  ul {
+    list-style-type: none;
+}
+
+/* --------------------------------
+
+Primary style
+
+-------------------------------- */
+.cd-product {
+    font-size: 100%;
+    color: #33435a;
+}
+
+.cd-product a {
+    color: #d95353;
+    text-decoration: none;
+}
+
+/* --------------------------------
+
+Modules - reusable parts of our design
+
+-------------------------------- */
+.cd-container {
+    max-width: 100%;
+    width: 100%;
+    margin: 0 auto;
+}
+.cd-container:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.cd-img-replace {
+    /* replace text with background images */
+    display: inline-block;
+    overflow: hidden;
+    text-indent: 100%;
+    white-space: nowrap;
+}
+/* --------------------------------
+
+Main components
+
+-------------------------------- */
+.cd-product h1 {
+    font-size: 30px;
+    font-size: 1.875rem;
+    text-align: center;
+    color: #f2eacf;
+    font-weight: 300;
+}
+
+.cd-product-wrapper {
+    display: inline-block;
+    position: relative;
+    margin: 0 auto;
+}
+
+.cd-product-wrapper > img {
+    display: block;
+}
+
+.cd-single-point {
+    position: absolute;
+    border-radius: 50%;
+}
+
+.cd-single-point > a {
+    /*z-index: 2;*/
+    display: block;
+    width: 30px;
+    height: 30px;
+    border-radius: inherit;
+    background-color: #cfccc3;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    -webkit-transition: background-color 0.2s;
+    -moz-transition: background-color 0.2s;
+    transition: background-color 0.2s;
+}
+
+.cd-single-point > a::after, .cd-single-point > a:before {
+}
+
+.cd-single-point > a::after {
+
+}
+
+.cd-single-point > a::before {
+}
+
+.cd-single-point.is-open > a {
+    background-color: #cfccc3;
+}
+
+.cd-single-point.is-open > a::after, .cd-single-point.is-open > a::before {
+    -webkit-transform: translateX(-50%) translateY(-50%) rotate(135deg);
+    -moz-transform: translateX(-50%) translateY(-50%) rotate(135deg);
+    -ms-transform: translateX(-50%) translateY(-50%) rotate(135deg);
+    -o-transform: translateX(-50%) translateY(-50%) rotate(135deg);
+    transform: translateX(-50%) translateY(-50%) rotate(135deg);
+}
+
+@media only screen and (max-width: 766px) {
+    .cd-single-point.is-open .cd-more-info {
+        /*margin-top: 50px;*/
+        display: none;
+    }
+}
+
+.cd-single-point.is-open > .cd-img-replace {
+    background-color: #2e6da4;
+}
+.pinnable-image-row ul.pin-row-list .pin-row-list-element.is-open {
+    background-color: #2e6da4 !important;
+}
+
+.cd-single-point.is-open .cd-more-info {
+    visibility: visible;
+    opacity: 1;
+    -webkit-transform: scale(1);
+    -moz-transform: scale(1);
+    -ms-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+    -webkit-transition: opacity 0.3s 0s, visibility 0s 0s, -webkit-transform 0.3s 0s, top 0.3s 0s, bottom 0.3s 0s, left 0.3s 0s, right 0.3s 0s;
+    -moz-transition: opacity 0.3s 0s, visibility 0s 0s, -moz-transform 0.3s 0s, top 0.3s 0s, bottom 0.3s 0s, left 0.3s 0s, right 0.3s 0s;
+    transition: opacity 0.3s 0s, visibility 0s 0s, transform 0.3s 0s, top 0.3s 0s, bottom 0.3s 0s, left 0.3s 0s, right 0.3s 0s;
+}
+
+.pin-block a {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    color: #9c9583;
+    background: #c0b9a7;
+}
+
+.pin-row-list-element a.add-pin{
+    width: 22px;
+    height: 22px;
+    margin:1px 0 0 5px;
+    border-radius: 50%;
+    display: inline-block;
+    position: absolute;
+    color: #9c9583;
+    background: #cecbc2;
+}
+
+.pin-row-list-element strong{
+    margin-left: 30px;
+}
+
+.pin-row-list-element a.add-pin>i{
+    color: white;
+    font-size: 10px;
+}
+
+.pin-row-list-element a.add-pin>i:before{
+    top: 6px;
+    left: 3px;
+    position: absolute;
+}
+
+.pin-block i.icn-add_pin {
+    position: absolute;
+    left: 6px;
+    top: 8px;
+    font-size: 12px;
+    color: white;
+}
+
+.pin-block span{
+    vertical-align: super;
+    padding-left: 5px;
+}
+
+.cd-single-point i.icn.icn-add_pin {
+    position: absolute;
+    z-index: 1;
+    left: 5px;
+    font-size: 13px;
+    top: 7px;
+    color: white;
+}
+
+@media only screen and (min-width: 600px) {
+    .cd-single-point.is-open .cd-more-info.cd-left {
+        right: 140%;
+    }
+    .cd-single-point.is-open .cd-more-info.cd-right {
+        left: 140%;
+    }
+    .cd-single-point.is-open .cd-more-info.cd-top {
+        bottom: 140%;
+    }
+    .cd-single-point.is-open .cd-more-info.cd-bottom {
+        top: 140%;
+    }
+}
+
+.cd-single-point .cd-more-info {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    text-align: left;
+    line-height: 1.5;
+    background-color: white;
+    padding: 2em 1em 1em;
+    visibility: hidden;
+    opacity: 0;
+    -webkit-transform: scale(0.8);
+    -moz-transform: scale(0.8);
+    -ms-transform: scale(0.8);
+    -o-transform: scale(0.8);
+    transform: scale(0.8);
+    -webkit-transition: opacity 0.3s 0s, visibility 0s 0.3s, -webkit-transform 0.3s 0s, top 0.3s 0s, bottom 0.3s 0s, left 0.3s 0s, right 0.3s 0s;
+    -moz-transition: opacity 0.3s 0s, visibility 0s 0.3s, -moz-transform 0.3s 0s, top 0.3s 0s, bottom 0.3s 0s, left 0.3s 0s, right 0.3s 0s;
+    transition: opacity 0.3s 0s, visibility 0s 0.3s, transform 0.3s 0s, top 0.3s 0s, bottom 0.3s 0s, left 0.3s 0s, right 0.3s 0s;
+}
+
+.cd-single-point .cd-more-info::before {
+    /* triangle next to the interest point description - hidden on mobile */
+    content: '';
+    position: absolute;
+    height: 0;
+    width: 0;
+    display: none;
+    border: 8px solid transparent;
+}
+
+.cd-single-point .cd-more-info h2 {
+    font-size: 22px;
+    font-size: 1.375rem;
+    margin-bottom: .6em;
+}
+
+.cd-single-point .cd-more-info p {
+    color: #758eb1;
+}
+
+.saved-pin-data strong{
+    color: black!important;
+    font-weight: 600!important;
+}
+
+.saved-pin-data i.icn-basket{
+    font-size: 20px;
+    color: #619be5;
+    padding-right: 5px;
+}
+.saved-pin-data a {
+    line-height: 40px;
+    vertical-align: baseline;
+    font-size: 14px!important;
+    font-weight: 400;
+}
+
+.cd-single-point .cd-more-info span strong {
+    font-weight: 300;
+    color: #9c9da9;
+}
+
+.pin-row-list-element{
+    text-align: left;
+    padding: 5px 0;
+}
+
+.cd-single-point .pin-block {
+    padding-bottom: 10px!important;
+}
+
+.cd-single-point .add-pin-form input {
+    border-radius: 5px;
+    border: 1px solid #eeeeee;
+    margin-bottom: 5px;
+    padding: 5px;
+    font-size: 14px;
+    font-style: italic;
+    font-weight: 300;
+}
+
+@media only screen and (min-width: 600px) {
+    .cd-single-point .cd-more-info {
+        position: absolute;
+        width: 250px;
+        height: auto;
+        padding: 15px 15px;
+        overflow-y: visible;
+        z-index: 500;
+        line-height: 1.4;
+        border-radius: 0.25em;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+    .cd-single-point .cd-more-info::before {
+        display: block;
+    }
+    .cd-single-point .cd-more-info.cd-left, .cd-single-point .cd-more-info.cd-right {
+        top: 50%;
+        bottom: auto;
+        -webkit-transform: translateY(-50%);
+        -moz-transform: translateY(-50%);
+        -ms-transform: translateY(-50%);
+        -o-transform: translateY(-50%);
+        transform: translateY(-50%);
+    }
+    .cd-single-point .cd-more-info.cd-left::before, .cd-single-point .cd-more-info.cd-right::before {
+        top: 50%;
+        bottom: auto;
+        -webkit-transform: translateY(-50%);
+        -moz-transform: translateY(-50%);
+        -ms-transform: translateY(-50%);
+        -o-transform: translateY(-50%);
+        transform: translateY(-50%);
+    }
+    .cd-single-point .cd-more-info.cd-left {
+        right: 160%;
+        left: auto;
+    }
+    .cd-single-point .cd-more-info.cd-left::before {
+        border-left-color: rgba(255, 255, 255, 0.95);
+        left: 100%;
+    }
+    .cd-single-point .cd-more-info.cd-right {
+        left: 160%;
+    }
+    .cd-single-point .cd-more-info.cd-right::before {
+        border-right-color: rgba(255, 255, 255, 0.95);
+        right: 100%;
+    }
+    .cd-single-point .cd-more-info.cd-top, .cd-single-point .cd-more-info.cd-bottom {
+        left: 50%;
+        right: auto;
+        -webkit-transform: translateX(-50%);
+        -moz-transform: translateX(-50%);
+        -ms-transform: translateX(-50%);
+        -o-transform: translateX(-50%);
+        transform: translateX(-50%);
+    }
+    .cd-single-point .cd-more-info.cd-top::before, .cd-single-point .cd-more-info.cd-bottom::before {
+        left: 50%;
+        right: auto;
+        -webkit-transform: translateX(-50%);
+        -moz-transform: translateX(-50%);
+        -ms-transform: translateX(-50%);
+        -o-transform: translateX(-50%);
+        transform: translateX(-50%);
+    }
+    .cd-single-point .cd-more-info.cd-top {
+        bottom: 160%;
+        top: auto;
+    }
+    .cd-single-point .cd-more-info.cd-top::before {
+        border-top-color: rgba(255, 255, 255, 0.95);
+        top: 100%;
+    }
+    .cd-single-point .cd-more-info.cd-bottom {
+        top: 160%;
+    }
+    .cd-single-point .cd-more-info.cd-bottom::before {
+        border-bottom-color: rgba(255, 255, 255, 0.95);
+        bottom: 100%;
+    }
+    .cd-single-point .cd-more-info h2 {
+        font-size: 20px;
+        font-size: 1.25rem;
+        margin-bottom: 0;
+    }
+    .cd-single-point .cd-more-info p {
+        font-size: 14px;
+        font-size: 0.875rem;
+    }
+}
+
+/* close the interest point description - only on mobile */
+.cd-close-info {
+    position: fixed;
+    top: 5px;
+    right: 5px;
+}
+
+.hidden-pin {
+    visibility: hidden;
+}
+
+.pin-container {
+    position: relative;
+}
+
+.btn-inline {
+    display: inline-block;
+    color: white;
+    width: 70px;
+    height: 30px;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 500;
+    margin: 5px 0 10px;
+}
+
+.add-pin-form .btn-gray{
+    background-color: #cecece;
+}
+
+.add-pin-form .btn-blue{
+    background-color: #9c9583;
+}
+
+
+.pin-container .cd-single-point .cd-more-info span {
+    color: #50515e;
+    font-size: 22px;
+    font-style: italic;
+    font-weight: 300;
+}
+
+.pin-container .cd-single-point .cd-more-info span p {
+    color: #000 !important;
+    font-size: 16px !important;
+}
+
+.pin-container .cd-single-point .cd-more-info h1 {
+    margin-top: 0;
+    color: #000;
+    font-size: 24px;
+}
+
+.pin-container .cd-single-point .cd-more-info a {
+    color: #4c4c4c;
+    font-size: 11px;
+    text-indent: inherit;
+}
+
+.pin-container .cd-single-point .cd-more-info .link {
+    margin-bottom: 5px;
+}
+
+/* Pin row list */
+.pinnable-image-row ul.pin-row-list {
+    list-style-type: none;
+    padding: 5px;
+    backgound-color: #fff;
+}
+
+.pinnable-image-row ul.pin-row-list li i, .pinnable-image-row ul.pin-row-list li strong {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+
+.pinnable-image-row ul.pin-row-list li:hover {
+    background-color: #f7f3f2!important;
+}
+
+.pinnable-image-row ul.pin-row-list li:hover a.add-pin{
+    background-color: #aaa592!important;
+
+}
+
+.pinnable-image-row ul.pin-row-list li:nth-child(even){
+    background-color: #fafafa;
+}
+
+.pin-rows-go-to-store {
+    float: right;
+    display: inline;
+}
+
+.pin-rows-edit-pin {
+    float: right;
+    display: none;
+}
+
+.go-to-store-edit {
+    padding-top: 5px;
+}
+
+.pinnable-image-row figcaption {
+    display: block;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    color: #ccc;
+    font-size: .8em;
+    font-style: italic;
+    outline: 0 solid transparent;
+    min-height: 24px;
+}
+
+.row.image-align-center .image-content-container {
+    max-width: 80%;
+    margin: auto;
+}
+
+.row.pinnable-image-row {
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.row.pinnable-image-row.image-align-center {
+    width: 100%;
+    text-align: center;
+    clear: both;
+}
+
+.row.pinnable-image-row.image-align-right {
+    float: right;
+    max-width: 33.33%;
+    /*clear: both;*/
+}
+
+.row.pinnable-image-row.image-align-left {
+    float: left;
+    max-width: 33.33%;
+    /*clear: both;*/
+}
+
+.row.pinnable-image-row.image-fit-to-page {
+    width: 100%;
+    margin-left: -5px;
+}
+
+.row.pinnable-image-row.image-fit-to-page .image-content-container,
+.row.pinnable-image-row.image-fit-to-page .image-content-container .pin-list,
+.row.pinnable-image-row.image-fit-to-page .image-content-container .pin-list .post-image {
+    width: 100%;
+}
+
+.medium-editor-element {
+    /*text-align: center; !* This line sometimes cause an error in FF *!*/
+    overflow: visible;
+    /*border: 1px solid #f3f3f3;*/
+    border: 1px dashed #c7c7c7;
+    -webkit-border-radius: 6px;
+    -moz-border-radius: 6px;
+    border-radius: 6px;
+}
+
+.medium-editor-element:after {
+    content: " ";
+    display: block;
+    clear: both;
+}
+
+.medium-editor-element p{
+    /*text-align: left;*/
+}
+
+.cd-single-point > i.icn-add_pin {
+    cursor: pointer;
+}
+
+.pin-row-list-element > a.add-pin {
+    position: relative;
+}

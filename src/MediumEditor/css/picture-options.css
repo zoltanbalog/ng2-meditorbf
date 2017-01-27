@@ -1,0 +1,165 @@
+.post-image-options {
+  position: absolute;
+  visibility: hidden;
+  opacity: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 2;
+  -webkit-transition: all 0.3s;
+  -moz-transition: all 0.3s;
+  transition: all 0.3s;
+}
+
+.post-image-options.active {
+  visibility: visible;
+  opacity: 1;
+}
+
+.post-image-options .list-inline {
+  text-align: center;
+  list-style: none;
+  padding: 0;
+  font-size: 25px;
+}
+
+.post-image-options .list-inline li:nth-child(3n) + li {
+  clear:both;
+  padding-left: 0;
+}
+
+.post-image-options .list-inline li {
+  display: inline;
+  padding-left: 10px;
+  padding-bottom: 30px;
+  float: left;
+}
+
+.post-image-options .list-inline li.first {
+  padding-left: 0;
+}
+
+.post-image-options .list-inline li i {
+  background-color: #C0B9A9;
+  transition: transform .2s;
+  cursor: pointer;
+  color: #ffffff;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: inline-block;
+  text-align: center;
+  padding-top: 10px;
+  -webkit-transition: all 0.3s;
+  -moz-transition: all 0.3s;
+  transition: all 0.3s;
+}
+
+.post-image-options .list-inline li i:hover{
+  background-color: #3f437a;
+}
+
+.post-image-options .list-inline li i:hover+p{
+  color: #3f437a;
+}
+
+.post-image-options .list-inline p {
+  font-size: 12px;
+  text-align: center;
+  margin: 0;
+  color: #C0B9A9;
+}
+
+.cd-product a{
+  position: relative;
+}
+
+.cd-product .post-image-option-element p {
+  top: 44px;
+  left: -5px;
+  width: 60px;
+  position: absolute;
+  display: inline-block;
+  line-height: 18px;
+}
+
+.cd-close-info {
+  visibility: hidden;
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+  height: 0;
+}
+
+.post-image-option-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 3;
+    border: 1px solid rgba(232, 232, 232, 0.28);
+    height: 34px;
+    cursor: pointer;
+    line-height: 34px;
+    font-size: 17px;
+    text-align: center;
+    background: #fff;
+}
+
+.pin-rows-go-to-store {
+    display: inline;
+}
+
+.wait-for-pin .pin-rows-go-to-store {
+    display: none;
+}
+
+.pin-rows-edit-pin {
+    display: none;
+}
+
+.wait-for-pin .pin-rows-edit-pin {
+    display: inline;
+}
+
+.img-align-button.active i {
+  background-color: #3f437a!important;
+}
+
+.post-image-options .center-btn>ul{
+  width: 176px;
+  height: 155px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -75px 0 0 -83px;
+}
+
+@media only screen and (max-width: 766px) {
+  .pinnable-image-row .post-image-options .add-pin {
+    display: none;
+  }
+}
+
+.pinnable-image-row .add-pin-form .add-pin-form-valid {
+    display: none;
+    color: red;
+}
+
+.pinnable-image-row .add-pin-form .add-pin-form-valid.active {
+  display: block;
+}
+
+
+.cd-more-info .remove-saved-pin{
+  margin-left: 5px;
+}
+
+.img-caption[contenteditable=true]:empty:not(:focus):before {
+  content: attr(placeholder);
+  display: block; /* For Firefox */
+}

@@ -63,6 +63,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             images.forEach(img => {
                 this.addToContent(this.generateImageContainer(img));
             });
+            this.removePlaceholder();
             this.removeMediumInsert();
         }
     }
@@ -71,6 +72,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     set media(media) {
         if (media) {
             this.addToContent(media);
+            this.removePlaceholder();
             this.removeMediumInsert();
         }
     }
@@ -103,8 +105,11 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     @Input()
     set uploadedImageData(uploadedImageData) {
         if (uploadedImageData) {
-            if (this.featuredImage === uploadedImageData.id) {
+            if (this.featuredImage === uploadedImageData.id && Number.isInteger(uploadedImageData.data.id)) {
                 this.featuredImage = uploadedImageData.data.id;
+                this.featuredImageChanged();
+            } else if (this.featuredImage === uploadedImageData.id) {
+                this.featuredImage = 3;
                 this.featuredImageChanged();
             }
             let pinnableContainer = this.elementRef.nativeElement.querySelector('div[data-img-original-id="'+uploadedImageData.id+'"]');
@@ -334,7 +339,6 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
     setDragNDropListeners() {
         this.dragStartListeners = this.renderer.listen(this.editor.elements[0], 'dragstart', (event) => {
-            console.log('dragstart');
             let target = event.target;
             if (this.elementHasClass(target, 'pinnable-image-row')) {
                 this.lastDraggedElement = target;
@@ -440,6 +444,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
                 this.pasteEmbedMediaEvent.emit({'event': event, 'data': clipboardData['text/plain']});
             }
         }
+
+        this.removePlaceholder();
     }
 
     setEditorClickEventListeners(event) {
@@ -744,7 +750,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         let actualId = "postImage" + this.imageCounter;
 
         let featuredClass = '';
-        if (this.featuredImage === 3) {
+        if (this.featuredImage === 3 && (Number.isInteger(img.id) || img.id.substr(0, 3) === 'tmp')) {
             this.featuredImage = img.id;
             featuredClass = 'featured-image';
             this.featuredImageChanged();
@@ -902,7 +908,10 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         }
         let pictureContainer = this.closestElementByClass(featuredImageButton, 'pinnable-image-row');
         pictureContainer.classList.toggle('featured-image');
-        if (this.elementHasAttribute(pictureContainer, 'data-img-original-id')) {
+        if (this.elementHasAttribute(pictureContainer, 'data-img-original-id')
+            && (Number.isInteger(parseInt(pictureContainer.getAttribute("data-img-original-id")))
+            || pictureContainer.getAttribute('data-img-original-id').substr(0, 3) === 'tmp')
+        ) {
             this.featuredImage = parseInt(pictureContainer.getAttribute("data-img-original-id"));
             this.featuredImageChanged();
         }
@@ -917,22 +926,42 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
      */
     deletePicture(target) {
         let pictureContainer = this.closestElementByClass(target, 'pinnable-image-row');
-        if (pictureContainer) {
-            pictureContainer.remove();
-            let firstImage = this.elementRef.nativeElement.querySelector('.post-image');
-            if (firstImage) {
-                let pinnableImageRow = this.closestElementByClass(firstImage, 'pinnable-image-row');
-                pinnableImageRow.classList.add('featured-image');
-                this.featuredImage = parseInt(firstImage.getAttribute("data-original-id"));
-                return;
-            }
-            this.featuredImage = 3;
-            this.featuredImageChanged();
-            // this.refreshMediumEditor(); // TODO: ??
-            // this.checkContent(); // TODO hasonlóan a refreshhez egy event kiváltás, lehet elég lesz
+        if (!pictureContainer) {
+            this.closeLastOpenedImageOptionMenu();
+            return;
         }
 
+        if (!this.elementHasClass(pictureContainer, 'featured-image')) {
+            pictureContainer.remove();
+            this.closeLastOpenedImageOptionMenu();
+            return;
+        }
+
+        if (!this.elementHasAttribute(pictureContainer, 'data-img-original-id')
+            || isNaN(parseInt(pictureContainer.getAttribute('data-img-original-id')))
+            || parseInt(pictureContainer.getAttribute('data-img-original-id')) != this.featuredImage
+        ) {
+            pictureContainer.remove();
+            this.closeLastOpenedImageOptionMenu();
+            return;
+        }
+
+        pictureContainer.remove();
+        let firstImage = this.elementRef.nativeElement.querySelector('.post-image');
+        if (firstImage) {
+            let pinnableImageRow = this.closestElementByClass(firstImage, 'pinnable-image-row');
+            pinnableImageRow.classList.add('featured-image');
+            let id = parseInt(firstImage.getAttribute("data-original-id"));
+            if (!isNaN(id)) {
+                this.featuredImage = parseInt(firstImage.getAttribute("data-original-id"));
+            } else {
+                this.featuredImage = 3;
+            }
+        } else {
+            this.featuredImage = 3;
+        }
         this.closeLastOpenedImageOptionMenu();
+        this.featuredImageChanged();
     }
 
     /**
@@ -1888,12 +1917,15 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             let btoaHash = btoa(images[i].src);
             let newUrl = this.thumbImageUrl + btoaHash;
             //resized_height, resized_width
+
+            let tmpId = 'tmp' + this.imageCounter;
             images[i].outerHTML = this.generateImageContainer({
                 'src': newUrl,
-                'id': btoaHash
+                'id': tmpId
             });
 
-            this.uploadImageByUrl(newUrl, btoaHash);
+            this.imageCounter++;
+            this.uploadImageByUrl(newUrl, tmpId);
         }
     }
 
@@ -1915,7 +1947,6 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
     cleanupTags(element) {
         if (this.cleanTags.indexOf(element.nodeName.toLowerCase()) !== -1) {
-            console.log(element);
             if (element.nodeName.toLowerCase() === 'a' && element.querySelector('img')) {
                 let image = element.querySelector('img');
                 element.parentNode.insertBefore(image, element);
@@ -1967,6 +1998,12 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     /* Clipboard data cleaning end */
 
     /* Utils method start */
+
+    removePlaceholder() {
+        if (this.editor.elements[0].innerHTML !== '' && this.elementHasClass(this.editor.elements[0], 'medium-editor-placeholder')) {
+            this.editor.elements[0].classList.remove('medium-editor-placeholder');
+        }
+    }
 
     /**
      * Check an element has a classList

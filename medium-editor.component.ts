@@ -766,7 +766,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             + '</ul>'
             + '</div>'
             + '</div>'
-            + '<p></p>';
+            + '<p><br/></p>';
 
         this.imageCounter++;
         return content;

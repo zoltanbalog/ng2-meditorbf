@@ -1,3 +1,4 @@
+@import "https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.0/spectrum.min.css";
 @-webkit-keyframes medium-editor-image-loading {
   0% {
     -webkit-transform: scale(0);
@@ -461,12 +462,12 @@
     padding-right: 0
 }
 
-.medium-editor-toolbar li .medium-color-chooser {
-    background-color: #4D4E6C;
-    padding: 5px;
-    margin-top: -4px;
-    border-radius: 5px
-}
+/*.medium-editor-toolbar li .medium-color-chooser {*/
+    /*background-color: #4D4E6C;*/
+    /*padding: 5px;*/
+    /*margin-top: -4px;*/
+    /*border-radius: 5px*/
+/*}*/
 
 .medium-editor-toolbar li .medium-color-chooser .chooser {
     width: 15px;

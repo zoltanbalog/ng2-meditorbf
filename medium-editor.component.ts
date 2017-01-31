@@ -133,6 +133,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     @Output() changeEvent = new EventEmitter<any>();
     @Output() focusEvent = new EventEmitter<any>();
     @Output() keyUpEvent = new EventEmitter<any>();
+    @Output() keypressEvent = new EventEmitter<any>();
+    @Output() keyDownEvent = new EventEmitter<any>();
     @Output() clickEvent = new EventEmitter<any>();
     @Output() blurEvent = new EventEmitter<any>();
     @Output() pasteEvent = new EventEmitter<any>();
@@ -290,6 +292,14 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             this.addMediaInsertRow(event);
             this.setEditorKeyupEventListeners(event);
         });
+        this.editor.subscribe('editableKeypress', (event: any, element: any) => {
+            this.keypressEvent.emit({'event': event, 'target': element});
+            this.addMediaInsertRow(event);
+        });
+        this.editor.subscribe('editableKeydown', (event: any, element: any) => {
+            this.keyDownEvent.emit({'event': event, 'target': element});
+            this.addMediaInsertRow(event);
+        });
         this.editor.subscribe('editableClick', (event: any, element: any) => {
             this.clickEvent.emit({'event': event, 'target': element});
             this.addMediaInsertRow(event);
@@ -416,6 +426,13 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     }
 
     setPasteEventListeners(event) {
+        let mediumInsertActives = document.querySelectorAll('.medium-insert-active');
+        if (mediumInsertActives) {
+            for (let i = 0; i < mediumInsertActives.length; i++) {
+                mediumInsertActives[i].classList.remove('medium-insert-active');
+            }
+        }
+
         let clipboardData = this.getClipboardContent(event);
         if (clipboardData['text/html']) {
             event.preventDefault();

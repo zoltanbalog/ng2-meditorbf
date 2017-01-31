@@ -170,6 +170,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
     addElementHeightToAddMediaPosition = 0;
 
+    autoFocusRun = false;
+
     constructor(
         private elementRef: ElementRef,
         private renderer: Renderer,
@@ -188,20 +190,32 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
         this.editor = new MediumEditor(this.host.nativeElement, this.options);
 
+        if (this.editor.elements[0].innerHTML === '') {
+            this.editor.elements[0].innerHTML = '<p><br /></p>';
+        }
+
         this.setGlobalEventListeners();
         this.registerEventListeners();
         this.setDragNDropListeners();
     }
 
     ngAfterViewInit() {
-        setTimeout(() => {
-            this.editor.elements[0].click();
-        }, 2400);
     }
 
     ngAfterViewChecked() {
         if (this.mode && this.mode === "edit" && !this.isImageOptionMenuRestored) {
             this.restoreImagesOptionsHTML();
+        }
+        if (!this.autoFocusRun
+            && this.editor.elements[0]
+            && this.elementHasClass(this.editor.elements[0], 'medium-editor-element')
+            && this.editor.elements[0].querySelector('p')
+            && document.querySelector('.floating-add-buttons')
+        ) {
+            this.editor.elements[0].focus();
+            let firstPElement = this.editor.elements[0].querySelector('p');
+            this.addMediaInsertRow({'target': firstPElement});
+            this.autoFocusRun = true;
         }
     }
 

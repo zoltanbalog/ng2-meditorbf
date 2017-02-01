@@ -209,10 +209,12 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             && this.editor.elements[0].querySelector('p')
             && document.querySelector('.floating-add-buttons')
         ) {
-            this.editor.elements[0].focus();
-            let firstPElement = this.editor.elements[0].querySelector('p');
-            this.addMediaInsertRow({'target': firstPElement});
-            this.autoFocusRun = true;
+            setTimeout(()=>{
+                this.editor.elements[0].focus();
+                let firstPElement = this.editor.elements[0].querySelector('p');
+                this.addMediaInsertRow({'target': firstPElement});
+                this.autoFocusRun = true;
+            }, 0);
         }
     }
 

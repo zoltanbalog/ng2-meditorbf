@@ -513,3 +513,8 @@
     border: 1px solid transparent;
     outline: none
 }
+
+.meditor-bf-container {
+    /*test*/
+    position: relative;
+}

@@ -16,27 +16,29 @@ import { DividerExtension } from "./src/Extension/divider.extension";
     }],
     encapsulation: ViewEncapsulation.None,
     template: `
-        <div #host></div>
-        <div class="floating-add-buttons" [class.active]="!isShowAddButtons"
-             [class.insert-button-visibile]="!isInsertButtonHidden">
-            <div class="floating-button" (click)="showAddButtons()">
-                <i class="icn icn-cross" aria-hidden="true"></i>
-            </div>
-            <ul class="list-unstyled">
-                <li class="floating-btn" (click)="startAddPicture()">
-                    <i class="icn icn-add_picture" aria-hidden="true"></i>
-                    <p>Pictures</p>
-                </li>
-                <!-- <li class="floating-btn">
-                   <i class="icn icn-add_collage" aria-hidden="true"></i>
-                   <p>Collage</p>
-                 </li>-->
-                <li class="floating-btn" (click)="startAddMedia()">
-                    <i class="icn icn-add_video" aria-hidden="true"></i>
-                    <p>Video</p>
-                </li>
-            </ul>
-        </div>        
+        <div class="meditor-bf-container">
+            <div #host></div>
+            <div class="floating-add-buttons" [class.active]="!isShowAddButtons"
+                 [class.insert-button-visibile]="!isInsertButtonHidden">
+                <div class="floating-button" (click)="showAddButtons()">
+                    <i class="icn icn-cross" aria-hidden="true"></i>
+                </div>
+                <ul class="list-unstyled">
+                    <li class="floating-btn" (click)="startAddPicture()">
+                        <i class="icn icn-add_picture" aria-hidden="true"></i>
+                        <p>Pictures</p>
+                    </li>
+                    <!-- <li class="floating-btn">
+                       <i class="icn icn-add_collage" aria-hidden="true"></i>
+                       <p>Collage</p>
+                     </li>-->
+                    <li class="floating-btn" (click)="startAddMedia()">
+                        <i class="icn icn-add_video" aria-hidden="true"></i>
+                        <p>Video</p>
+                    </li>
+                </ul>
+            </div>    
+        </div>
     `,
     styleUrls: [
         './src/MediumEditor/css/font-awesome.min.css',
@@ -124,11 +126,6 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         }
     }
 
-    @Input()
-    set elementHeight(elementHeight) {
-        this.addElementHeightToAddMediaPosition = elementHeight;
-    }
-
     // Triggering events
     @Output() changeEvent = new EventEmitter<any>();
     @Output() focusEvent = new EventEmitter<any>();
@@ -169,8 +166,6 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     isImageOptionMenuRestored = false; // Image option menus is restored (only edit)
 
     lastDraggedElement: any = null;
-
-    addElementHeightToAddMediaPosition = 0;
 
     autoFocusRun = false;
 
@@ -652,26 +647,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
     calculateInsertButtonPosition() {
         let targetElement = this.elementRef.nativeElement.querySelector('.medium-insert-active');
-        let targetElementXPosition = 0;
-        let targetElementYPosition = targetElement.getBoundingClientRect().top;
-        while (targetElement) {
-            targetElementXPosition += (targetElement.offsetLeft - targetElement.scrollLeft + targetElement.clientLeft);
-            targetElement = targetElement.offsetParent;
-        }
-
-        let meditorElementXPosition = 0;
-        let meditorElement = this.editor.elements[0];
-        let mediumEditorScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        while (meditorElement) {
-            meditorElementXPosition += (meditorElement.offsetLeft - meditorElement.scrollLeft + meditorElement.clientLeft);
-            meditorElement = meditorElement.offsetParent;
-        }
-
-        var X = targetElementXPosition - meditorElementXPosition;
-        return {
-            'xpos': X - 40,
-            'ypos': targetElementYPosition + mediumEditorScrollTop - 125 - this.addElementHeightToAddMediaPosition
-        }
+        return {'xpos': -40, 'ypos': targetElement.offsetTop};
     }
 
     showInsertButton() {

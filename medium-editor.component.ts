@@ -432,7 +432,6 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
         let clipboardData = this.getClipboardContent(event);
         if (clipboardData['text/html']) {
-            event.preventDefault();
 
             if (this.elementHasClass(event.target, 'img-caption')
                 || this.elementHasClass(event.target, 'pinnable-image-row')
@@ -441,7 +440,9 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
                 return;
             }
 
-            let elem = document.createElement("div");
+            event.preventDefault();
+
+            let elem = document.createElement("p");
             elem.innerHTML = clipboardData['text/html'];
 
             let allElements = elem.querySelectorAll('*');
@@ -462,7 +463,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             if (event.target.classList && event.target.classList.contains('medium-editor-element')) {
                 event.target.appendChild(elem);
             } else {
-                event.target.insertAdjacentHTML('beforebegin', elem.innerHTML);
+                event.target.insertAdjacentHTML('afterend', elem.outerHTML);
             }
         } else if (this.elementHasClass(event.target, 'img-caption')) {
             this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());

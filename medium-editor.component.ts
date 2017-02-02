@@ -327,6 +327,31 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             if (!event.target || !event.target || event.target.getAttribute || event.target.getAttribute('dynamicClick')) {
                 this.setImageDefaultStateClick(event.target);
             }
+
+            if(!this.isWaitingForPin
+                && (this.closestElementByClass(event.target, 'pin-row-list-element')
+                || this.elementHasClass(event.target, 'pin-row-list-element'))
+                && !(this.elementHasClass(event.target, 'pin-rows-edit-pin')
+                || this.closestElementByClass(event.target, 'pin-rows-edit-pin'))
+            ) {
+                let rowPoint = this.elementHasClass(event.target, 'pin-row-list-element') ? event.target : this.closestElementByClass(event.target, 'pin-row-list-element');
+                if (rowPoint) {
+                    this.renderer.listen(rowPoint, 'click', (event) => {
+                        let goToStore = rowPoint.querySelector('.pin-rows-go-to-store');
+                        if (goToStore && goToStore.getAttribute && goToStore.getAttribute('href')) {
+                            // Create link in memory
+                            var a = window.document.createElement("a");
+                            a.target = '_blank';
+                            a.href = goToStore.getAttribute('href');
+
+                            // Dispatch fake click
+                            var e = window.document.createEvent("MouseEvents");
+                            e.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                            a.dispatchEvent(e);
+                        }
+                    });
+                }
+            }
         });
 
         this.globalMouseOverListenFunc = this.renderer.listenGlobal('document', 'mouseover', (event) => {
@@ -879,7 +904,9 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
      * @param event Click event
      */
     setImageDefaultStateClick(targetElement) {
-        if (this.closestElementByClass(targetElement, 'pin-container')) {
+        if (this.closestElementByClass(targetElement, 'pin-container') || this.closestElementByClass(targetElement, 'pin-rows-edit-pin')
+            || this.elementHasClass(targetElement, 'pin-container') || this.elementHasClass(targetElement, 'pin-rows-edit-pin')
+        ) {
             return;
         }
 
@@ -1489,7 +1516,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             + '<a class="cd-img-replace" href="javascript:void(0);" dynamicClick="togglePinTooltip()" dynamicMouseOut="hideSavedPin()" dynamicMouseOver="showSavedPin()" data-disable-preview="true">Pin</a>'
             + '<div class="cd-more-info">'
             + this.createPinForm(pinId)
-            + '<a href="javascript:void();" data-disable-preview="true" class="cd-close-info cd-img-replace"><i class="icn icn-cross"></i></a>'
+            // + '<a href="javascript:void();" data-disable-preview="true" class="cd-close-info cd-img-replace"><i class="icn icn-cross"></i></a>'
             + '</div>'
             + '</li>';
     }
@@ -1607,9 +1634,9 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             storeLink = '<a href="http://' + formData.link.value + '" data-disable-preview="true" class="pin-rows-go-to-store" target="_blank"><i class="go-to-store-edit icn icn-basket"></i></a>';
         }
 
-        return '<li id="' + selectedPointId + 'Row" data-rel="' + selectedPointId + '" class="pin-row-list-element" dynamicClick="togglePinTooltipOutInWYSIWYGModeByRow()">'
-            + '<a class="add-pin" dynamicClick="togglePinTooltipOutInWYSIWYGModeByRow()"><i class="icn icn-add_pin" dynamicClick="togglePinTooltipOutInWYSIWYGModeByRow()"></i></a>'
-            + '<strong dynamicClick="togglePinTooltipOutInWYSIWYGModeByRow()">' + formData.product.value + '</strong>'
+        return '<li id="' + selectedPointId + 'Row" data-rel="' + selectedPointId + '" class="pin-row-list-element">'
+            + '<a class="add-pin" href="javascript:void(0);"><i class="icn icn-add_pin"></i></a>'
+            + '<strong>' + formData.product.value + '</strong>- '
             + formData.store.value
             + storeLink
             + '<a href="javascript:void(0);" data-disable-preview="true" dynamicClick="removeSavedPinByRow()" class="pin-rows-edit-pin"><i dynamicClick="removeSavedPinByRow()" class="go-to-store-edit icn icn-close"></i></a>'

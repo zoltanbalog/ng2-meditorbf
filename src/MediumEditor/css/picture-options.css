@@ -27,16 +27,10 @@
   font-size: 25px;
 }
 
-.post-image-options .list-inline li:nth-child(3n) + li {
-  clear:both;
-  padding-left: 0;
-}
-
 .post-image-options .list-inline li {
-  display: inline;
+  display: inline-block;
   padding-left: 10px;
   padding-bottom: 30px;
-  float: left;
 }
 
 .post-image-options .list-inline li.first {
@@ -49,8 +43,8 @@
   cursor: pointer;
   color: #ffffff;
   position: relative;
-  width: 50px;
-  height: 50px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: inline-block;
   text-align: center;
@@ -61,12 +55,9 @@
 }
 
 .post-image-options .list-inline li i:hover{
-  background-color: #3f437a;
+  background-color: #424352;
 }
 
-.post-image-options .list-inline li i:hover+p{
-  color: #3f437a;
-}
 
 .post-image-options .list-inline p {
   font-size: 12px;
@@ -77,15 +68,15 @@
 
 .cd-product a{
   position: relative;
+  font-size: 16px;
 }
 
 .cd-product .post-image-option-element p {
-  top: 44px;
-  left: -5px;
+  top: 35px;
+  left: -12px;
   width: 60px;
   position: absolute;
   display: inline-block;
-  line-height: 18px;
 }
 
 .cd-close-info {
@@ -105,9 +96,11 @@
     height: 34px;
     cursor: pointer;
     line-height: 34px;
+    border-bottom-left-radius: 5px;
     font-size: 17px;
     text-align: center;
     background: #fff;
+    outline: none;
 }
 
 .pin-rows-go-to-store {
@@ -127,16 +120,17 @@
 }
 
 .img-align-button.active i {
-  background-color: #3f437a!important;
+  background-color: #424352!important
 }
 
 .post-image-options .center-btn>ul{
-  width: 176px;
-  height: 155px;
+  height: 70px;
+  margin: auto;
   position: absolute;
-  top: 50%;
-  left: 50%;
-  margin: -75px 0 0 -83px;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
 }
 
 @media only screen and (max-width: 766px) {

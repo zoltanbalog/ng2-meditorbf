@@ -262,17 +262,14 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             }
         }
 
-        let imageCaptions = this.elementRef.nativeElement.querySelectorAll('.img-caption');
-        if (imageCaptions && imageCaptions.length > 0) {
-            for (let imageCaption of imageCaptions) {
-                imageCaption.setAttribute('contenteditable', true);
-            }
-        }
+        // let imageCaptions = this.elementRef.nativeElement.querySelectorAll('.img-caption');
+        // if (imageCaptions && imageCaptions.length > 0) {
+        //     for (let imageCaption of imageCaptions) {
+        //         imageCaption.setAttribute('contenteditable', true);
+        //     }
+        // }
 
         this.imageCounter += 1;
-        // setTimeout(() => {
-        //     this.refreshMediumEditor();
-        // }, 0);
     }
 
     registerEventListeners() {
@@ -303,7 +300,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             this.setEditorClickEventListeners(event);
         });
         this.editor.subscribe('blur', (event: any, element: any) => {
-            this.setEditorBlurEventListener(event);
+            // this.setEditorBlurEventListener(event);
             this.blurEvent.emit({'event': event, 'target': element});
         });
         this.editor.subscribe('editablePaste', (event: any, element: any) => {
@@ -424,21 +421,20 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             this.lastDraggedElement = null;
 
             this.setImageDefaultState();
-
-            // this.refreshMediumEditor(); // TODO ???
         });
     }
 
-    setEditorBlurEventListener(event) {
-        if (this.elementHasClass(event.target, 'img-caption')) {
-            this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
-        }
-    }
+    // setEditorBlurEventListener(event) {
+    //     if (this.elementHasClass(event.target, 'img-caption')) {
+    //         this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+    //     }
+    // }
 
     setEditorKeyupEventListeners(event) {
-        if (this.elementHasClass(event.target, 'img-caption')) {
-            this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
-        } else if (this.elementHasClass(event.target, 'product')) {
+        // if (this.elementHasClass(event.target, 'img-caption')) {
+        //     this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+        // } else
+        if (this.elementHasClass(event.target, 'product')) {
             this.validateProduct(event.target);
         } else if (this.elementHasClass(event.target, 'link')) {
             this.validateUrl(event.target);
@@ -458,8 +454,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         let clipboardData = this.getClipboardContent(event);
         if (clipboardData['text/html']) {
 
-            if (this.elementHasClass(event.target, 'img-caption')
-                || this.elementHasClass(event.target, 'pinnable-image-row')
+            if (//this.elementHasClass(event.target, 'img-caption') ||
+                this.elementHasClass(event.target, 'pinnable-image-row')
                 || this.closestElementByClass(event.target, 'pinnable-image-row')
             ) {
                 return;
@@ -490,8 +486,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             } else {
                 event.target.insertAdjacentHTML('afterend', elem.outerHTML);
             }
-        } else if (this.elementHasClass(event.target, 'img-caption')) {
-            this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+        // } else if (this.elementHasClass(event.target, 'img-caption')) {
+        //     this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
         } else if (clipboardData['text/plain']) {
             if (this.isAnYoutubeUrl(clipboardData['text/plain'])) {
                 event.preventDefault();
@@ -564,9 +560,9 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             }
         }
 
-        if (this.elementHasClass(event.target, 'img-caption')) {
-            this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
-        }
+        // if (this.elementHasClass(event.target, 'img-caption')) {
+        //     this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+        // }
     }
 
     setExtensions() {
@@ -802,7 +798,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             + this.generateImageOptionDataHtml(actualId)
             + '</div>'
             + '</div>'
-            + '<figcaption id="' + actualId + 'Caption" class="img-caption" data-image-id="' + actualId + '" contenteditable="true" placeholder="Write your image caption here"></figcaption>'
+            // + '<figcaption id="' + actualId + 'Caption" class="img-caption" data-image-id="' + actualId + '" contenteditable="true" placeholder="Write your image caption here"></figcaption>'
             + '<ul id="' + actualId + 'RowsUl" class="pin-row-list" contenteditable="false">'
             + '</ul>'
             + '</div>'
@@ -906,6 +902,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     setImageDefaultStateClick(targetElement) {
         if (this.closestElementByClass(targetElement, 'pin-container') || this.closestElementByClass(targetElement, 'pin-rows-edit-pin')
             || this.elementHasClass(targetElement, 'pin-container') || this.elementHasClass(targetElement, 'pin-rows-edit-pin')
+            || this.elementHasClass(targetElement, 'not-close-pin-mode')
         ) {
             return;
         }
@@ -1001,17 +998,17 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         this.featuredImageChanged();
     }
 
-    /**
-     * Set image data alt and title attribute by caption
-     *
-     * @param imgId The image id
-     * @param data The caption data
-     */
-    setImageCaptionData(imgId, data) {
-        let image = this.elementRef.nativeElement.querySelector('#' + imgId);
-        image.setAttribute('alt', data);
-        image.setAttribute('title', data);
-    }
+    // /**
+    //  * Set image data alt and title attribute by caption
+    //  *
+    //  * @param imgId The image id
+    //  * @param data The caption data
+    //  */
+    // setImageCaptionData(imgId, data) {
+    //     let image = this.elementRef.nativeElement.querySelector('#' + imgId);
+    //     image.setAttribute('alt', data);
+    //     image.setAttribute('title', data);
+    // }
 
     /**
      * Align image
@@ -1461,17 +1458,17 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
      * @returns {string} pin form
      */
     createPinForm(pinId, savedData: any = false) {
-        let saveButton = '<button id="' + pinId + 'FormSave" dynamicClick="savePin()" class="btn btn-xs btn-inline btn-blue pull-right" disabled>Pin it</button>';
-        let discardButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray">Discard</button>';
+        let saveButton = '<button id="' + pinId + 'FormSave" dynamicClick="savePin()" class="btn btn-xs btn-inline btn-blue pull-right not-close-pin-mode" disabled>Pin it</button>';
+        let discardButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray not-close-pin-mode">Discard</button>';
         let deleteButton = '';
         let updateClass = '';
         let dataAttribute = '';
         let product = '', store = '', tags = '', link = '';
 
         if (savedData !== false) {
-            saveButton = '<button id="' + pinId + 'FormSave" dynamicClick="savePin()" class="btn btn-xs btn-inline btn-blue pull-right">Update</button>';
-            discardButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray">Cancel</button>';
-            deleteButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray remove-saved-pin">Delete</button>';
+            saveButton = '<button id="' + pinId + 'FormSave" dynamicClick="savePin()" class="btn btn-xs btn-inline btn-blue pull-right not-close-pin-mode">Update</button>';
+            discardButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray not-close-pin-mode">Cancel</button>';
+            deleteButton = '<button dynamicClick="togglePinTooltip()" class="cd-close-info-button btn btn-xs btn-inline btn-gray remove-saved-pin not-close-pin-mode">Delete</button>';
             updateClass = 'saved-pin-update';
             dataAttribute = 'data-product="' + savedData['product']
                 + '" data-store="' + savedData['store']

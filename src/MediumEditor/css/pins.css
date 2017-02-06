@@ -583,3 +583,11 @@ Main components
 .pin-row-list-element > a.add-pin {
     position: relative;
 }
+
+.add-pin-form .validation-error-msg {
+    position: static;
+    right: 12px;
+    color: red;
+    font-size: 14px;
+    text-align: right;
+}

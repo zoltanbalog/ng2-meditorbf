@@ -289,6 +289,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         this.editor.subscribe('editableKeypress', (event: any, element: any) => {
             this.keypressEvent.emit({'event': event, 'target': element});
             this.addMediaInsertRow(event);
+            this.setEditorKeypressEventListeners(event);
         });
         this.editor.subscribe('editableKeydown', (event: any, element: any) => {
             this.keyDownEvent.emit({'event': event, 'target': element});
@@ -434,12 +435,23 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         // if (this.elementHasClass(event.target, 'img-caption')) {
         //     this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
         // } else
-        if (this.elementHasClass(event.target, 'product')) {
-            this.validateProduct(event.target);
-        } else if (this.elementHasClass(event.target, 'link')) {
-            this.validateUrl(event.target);
-        } else if (this.elementHasClass(event.target, 'store')) {
-            this.validateStore(event.target);
+
+        if (this.elementHasClass(event.target, 'product')
+            || this.elementHasClass(event.target, 'store')
+            || this.elementHasClass(event.target, 'tags')
+            || this.elementHasClass(event.target, 'link')
+        ) {
+            this.validatePinDetails(event.target);
+        }
+    }
+
+    setEditorKeypressEventListeners(event) {
+        if (this.elementHasClass(event.target, 'product')
+            || this.elementHasClass(event.target, 'store')
+            || this.elementHasClass(event.target, 'tags')
+            || this.elementHasClass(event.target, 'link')
+        ) {
+            this.validatePinDetails(event.target);
         }
     }
 
@@ -1383,71 +1395,116 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         }
     }
 
-    validateProduct(targetElement) {
-        if (targetElement.value !== '' && targetElement.value.length <= 30 ) {
-            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
-            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
-            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'ProductValid');
-            if (this.elementHasClass(validationError, 'active')) {
-                validationError.classList.remove('active');
-            }
+    validatePinDetails(targetElement) {
+        let isProductValid = false;
+        let isStoreValid = false;
+        let isTagsValid = false;
+        let isUrlValid = false;
+
+        let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
+
+        let product = parentForm.querySelector('.product');
+        if (product) {
+            isProductValid = this.validateProduct(product, parentForm);
+        }
+
+        let store = parentForm.querySelector('.store');
+        if (store) {
+            isStoreValid = this.validateStore(store, parentForm);
+        }
+
+        let tags = parentForm.querySelector('.tags');
+        if (tags) {
+            isTagsValid = this.validateTags(tags, parentForm);
+        }
+
+        let url = parentForm.querySelector('.link');
+        if (url) {
+            isUrlValid = this.validateUrl(url, parentForm);
+        }
+
+        let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
+        if (isProductValid && isStoreValid && isTagsValid && isUrlValid) {
             if (this.elementHasAttribute(saveButton, 'disabled')) {
                 saveButton.removeAttribute('disabled');
             }
-        } else if (targetElement.value === '' || targetElement.value.length > 30) {
-            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
-            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
+        } else {
             saveButton.setAttribute('disabled', true);
-            if (targetElement.value.length > 30) {
-                let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'ProductValid');
+        }
+    }
+
+    validateProduct(targetElement, parentForm) {
+        let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'ProductValid');
+        if (targetElement.value === '' || targetElement.value.length > 30) {
+            validationError.classList.add('active');
+            return false;
+        }
+
+        if (this.elementHasClass(validationError, 'active')) {
+            validationError.classList.remove('active');
+        }
+
+        return true;
+    }
+
+    validateStore(targetElement, parentForm) {
+        let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'StoreValid');
+        if (targetElement.value.length > 25) {
+            validationError.classList.add('active');
+            return false;
+        }
+
+        if (this.elementHasClass(validationError, 'active')) {
+            validationError.classList.remove('active');
+        }
+
+        return true;
+    }
+
+    validateTags(targetElement, parentForm) {
+        let wordsArray = targetElement.value.match(/\S+/g) || [];
+        let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'TagsValid');
+
+        if (wordsArray.length == 0) {
+            if (this.elementHasClass(validationError, 'active')) {
+                validationError.classList.remove('active');
+            }
+            return true;
+        } else if (wordsArray.length > 10) {
+            validationError.classList.add('active');
+            return false;
+        }
+
+        for (let i = 0; i < wordsArray.length; i++) {
+            if (wordsArray[i].length > 45) {
                 validationError.classList.add('active');
+                return false;
             }
         }
+
+        if (this.elementHasClass(validationError, 'active')) {
+            validationError.classList.remove('active');
+        }
+
+        return true;
     }
 
     isUrlValid(url) {
         return /^(http|https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(url);
     }
 
-    validateUrl(targetElement) {
-        // let URL_REGEXP = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+    validateUrl(targetElement, parentForm) {
+        let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'LinkValid');
         if (targetElement.value !== '' && !this.isUrlValid(targetElement.value)) {
-            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
-            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
-            saveButton.setAttribute('disabled', true);
-            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'LinkValid');
             validationError.classList.add('active');
-        } else if (this.isUrlValid(targetElement.value) || targetElement.value === '') {
-            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
-            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
-            if (this.elementHasAttribute(saveButton, 'disabled')) {
-                saveButton.removeAttribute('disabled');
-            }
-            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'LinkValid');
-            if (this.elementHasClass(validationError, 'active')) {
-                validationError.classList.remove('active');
-            }
+            return false;
         }
-    }
 
-    validateStore(targetElement) {
-        if (targetElement.value.length <= 25 ) {
-            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
-            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
-            if (this.elementHasAttribute(saveButton, 'disabled')) {
-                saveButton.removeAttribute('disabled');
-            }
-            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'StoreValid');
-            if (this.elementHasClass(validationError, 'active')) {
-                validationError.classList.remove('active');
-            }
-        } else if (targetElement.value.length > 25) {
-            let parentForm = this.closestElementByClass(targetElement, 'add-pin-form');
-            let saveButton = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'Save');
-            saveButton.setAttribute('disabled', true);
-            let validationError = parentForm.querySelector('#' + parentForm.getAttribute('id') + 'StoreValid');
-            validationError.classList.add('active');
+        if (this.elementHasClass(validationError, 'active')) {
+            validationError.classList.remove('active');
         }
+
+        return true;
     }
 
     /**
@@ -1486,10 +1543,11 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             +   '<span>Pin <strong>details:</strong></span>'
             + '</div>'
             + '<input contenteditable="true" type="text" class="col-sm-12 product" placeholder="Product name" value="' + product + '"/>'
-            + '<div id="' + pinId + 'FormProductValid" class="validation-error-msg add-pin-form-valid">Product name is too long, max. 30 character allowed!</div>'
+            + '<div id="' + pinId + 'FormProductValid" class="validation-error-msg add-pin-form-valid">Product is empty or name is too long, max. 30 character allowed!</div>'
             + '<input contenteditable="true" type="text" class="col-sm-12 store" placeholder="Store name" value="' + store + '"/>'
             + '<div id="' + pinId + 'FormStoreValid" class="validation-error-msg add-pin-form-valid">Store name is too long, max. 25 character allowed!</div>'
             + '<input contenteditable="true" type="text" class="col-sm-12 tags" placeholder="#Tags" value="' + tags + '"/>'
+            + '<div id="' + pinId + 'FormTagsValid" class="validation-error-msg add-pin-form-valid">Too many tags or too long tags, max. 10 tags or 45 characters limitation per tag allowed!</div>'
             + '<input contenteditable="true" type="text" class="col-sm-12 link" placeholder="Link" value="' + link + '"/>'
             + '<div id="' + pinId + 'FormLinkValid" class="validation-error-msg add-pin-form-valid">Not valid url!</div>'
             + discardButton

@@ -171,7 +171,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
 
     constructor(
         private elementRef: ElementRef,
-        private renderer: Renderer,
+        private renderer: Renderer
     ) {}
 
     ngOnInit() {
@@ -304,9 +304,11 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             // this.setEditorBlurEventListener(event);
             this.blurEvent.emit({'event': event, 'target': element});
         });
-        this.editor.subscribe('editablePaste', (event: any, element: any) => {
-            this.setPasteEventListeners(event);
-            this.pasteEvent.emit({'event': event, 'target': element});
+        // this.editor.subscribe('editablePaste', (event: any, element: any) => {
+        this.renderer.listen(this.editor.elements[0], 'paste', (event) => {
+            // this.setPasteEventListeners(event);
+            this.createPasteBin(this.editor.elements[0], event);
+            this.pasteEvent.emit({'event': event, 'target': event.target});
         });
 
     }
@@ -1979,7 +1981,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
     /* Clipboard data cleaning start */
 
     getClipboardContent(event) {
-        let dataTransfer = event.clipboardData,
+        let dataTransfer = event.clipboardData || (<any>window).clipboardData || (<any>document).dataTransfer,
             data = {};
 
         if (!dataTransfer) {
@@ -2195,5 +2197,305 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         return false;
     }
     /* Utils method end */
+
+    // PasteBinDemo
+
+    lastRange: any;
+    pasteBinDefaultContent = '%ME_PASTEBIN%';
+    pasteBinId;
+    stopProp = function (event) {
+        event.stopPropagation();
+    };
+
+    createPasteBin(editable, event) {
+        let rects,
+            range = this.getSelectionRange(),
+            top = window.pageYOffset;
+
+        if (range) {
+            rects = range.getClientRects();
+
+            // on empty line, rects is empty so we grab information from the first container of the range
+            if (rects.length) {
+                top += rects[0].top;
+            } else {
+                top += (<Element>range.startContainer).getBoundingClientRect().top;
+            }
+        }
+
+        this.lastRange = range;
+
+        let pasteBinElm = document.createElement('div');
+        pasteBinElm.id = this.pasteBinId = 'medium-editor-pastebin-' + (+Date.now());
+        pasteBinElm.setAttribute('style', 'border: 1px red solid; position: absolute; top: ' + top + 'px; width: 10px; height: 10px; overflow: hidden; opacity: 0');
+        pasteBinElm.setAttribute('contentEditable', 'true');
+        pasteBinElm.innerHTML = this.pasteBinDefaultContent;
+
+        document.body.appendChild(pasteBinElm);
+
+        // avoid .focus() to stop other event (actually the paste event)
+        this.editor.on(pasteBinElm, 'focus', this.stopProp);
+        this.editor.on(pasteBinElm, 'focusin', this.stopProp);
+        this.editor.on(pasteBinElm, 'focusout', this.stopProp);
+
+        pasteBinElm.focus();
+
+        this.selectNode(pasteBinElm);
+
+        this.handlePasteBinPaste(editable, event);
+
+        let mediumInsertActives = document.querySelectorAll('.medium-insert-active');
+        if (mediumInsertActives) {
+            for (let i = 0; i < mediumInsertActives.length; i++) {
+                mediumInsertActives[i].classList.remove('medium-insert-active');
+            }
+        }
+    }
+
+    handlePasteBinPaste(editable, event) {
+        if (event.defaultPrevented) {
+            this.removePasteBin();
+            return;
+        }
+
+        let clipboardContent = this.getClipboardContent(event),
+            pastedHTML = clipboardContent['text/html'],
+            pastedPlain = clipboardContent['text/plain'];
+
+        // If we have valid html already, or we're not in cleanPastedHTML mode
+        // we can ignore the paste bin and just paste now
+        if (pastedHTML) {
+            event.preventDefault();
+            this.removePasteBin();
+            this.doPaste(pastedHTML, pastedPlain, editable);
+
+            // The event handling code listens for paste on the editable element
+            // in order to trigger the editablePaste event.  Since this paste event
+            // is happening on the pastebin, the event handling code never knows about it
+            // So, we have to trigger editablePaste manually
+            this.editor.trigger('editablePaste', { currentTarget: editable, target: editable }, editable);
+            return;
+        }
+
+        // We need to look at the paste bin, so do a setTimeout to let the paste
+        // fall through into the paste bin
+        setTimeout(function () {
+            // Only look for HTML if we're in cleanPastedHTML mode
+            if (this.cleanPastedHTML) {
+                // If clipboard didn't have HTML, try the paste bin
+                pastedHTML = this.getPasteBinHtml();
+            }
+
+            // If we needed the paste bin, we're done with it now, remove it
+            this.removePasteBin();
+
+            // Handle the paste with the html from the paste bin
+            this.doPaste(pastedHTML, pastedPlain, editable);
+
+            // The event handling code listens for paste on the editable element
+            // in order to trigger the editablePaste event.  Since this paste event
+            // is happening on the pastebin, the event handling code never knows about it
+            // So, we have to trigger editablePaste manually
+            this.editor.trigger('editablePaste', { currentTarget: editable, target: editable }, editable);
+        }.bind(this), 0);
+    }
+
+    removePasteBin() {
+        if (null !== this.lastRange) {
+            this.selectRange(this.lastRange);
+            this.lastRange = null;
+        }
+
+        let pasteBinElm = this.getPasteBin();
+        if (!pasteBinElm) {
+            return;
+        }
+
+        if (pasteBinElm) {
+            this.editor.off(pasteBinElm, 'focus', this.stopProp);
+            this.editor.off(pasteBinElm, 'focusin', this.stopProp);
+            this.editor.off(pasteBinElm, 'focusout', this.stopProp);
+            pasteBinElm.parentElement.removeChild(pasteBinElm);
+        }
+    }
+
+    doPaste(pastedHTML, pastedPlain, editable) {
+        var paragraphs,
+            html = '',
+            p;
+
+        let elem = document.createElement("p");
+        elem.innerHTML = pastedHTML;
+
+        if (elem) {
+            if (//this.elementHasClass(event.target, 'img-caption') ||
+                this.elementHasClass(event.target, 'pinnable-image-row')
+                || this.closestElementByClass(event.target, 'pinnable-image-row')
+            ) {
+                return;
+            }
+
+            // event.preventDefault(); TODO lehet kell
+
+            let allElements = elem.querySelectorAll('*');
+            for (let i = 0; i < allElements.length; i += 1) {
+                let workEl = allElements[i];
+
+                if ('a' === workEl.nodeName.toLowerCase()) {
+                    workEl.setAttribute('target', '_blank');
+                }
+
+                this.cleanupAttrs(workEl);
+                this.cleanupTags(workEl);
+                this.unwrap(workEl);
+            }
+
+            this.changeImageSrc(elem.getElementsByTagName('img'));
+
+            // if (event.target.classList && event.target.classList.contains('medium-editor-element')) {
+            //   event.target.appendChild(elem);
+            // } else {
+            //   event.target.insertAdjacentHTML('afterend', elem.outerHTML);
+            // }
+        // } else if (this.elementHasClass(event.target, 'img-caption')) {
+        //     this.setImageCaptionData(event.target.getAttribute('data-image-id'), event.target.textContent.trim());
+        } else if (!elem && pastedPlain) {
+            if (this.isAnYoutubeUrl(pastedPlain)) {
+                // event.preventDefault();
+                this.pasteEmbedMediaEvent.emit({'event': event, 'data': pastedPlain});
+                return;
+            }
+        }
+
+        // html = MediumEditor.util.htmlEntities(pastedPlain);
+
+        this.removePlaceholder();
+
+        this.insertHTMLCommand(elem);
+    }
+
+    selectNode(node) {
+        let range = document.createRange();
+        range.selectNodeContents(node);
+        this.selectRange(range);
+    }
+
+    selectRange(range) {
+        let selection = document.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    getSelectionRange() {
+        var selection = document.getSelection();
+        if (selection.rangeCount === 0) {
+            return null;
+        }
+        return selection.getRangeAt(0);
+    }
+
+    getPasteBin() {
+        return document.getElementById(this.pasteBinId);
+    }
+
+    getPasteBinHtml() {
+        var pasteBinElm = this.getPasteBin();
+
+        if (!pasteBinElm) {
+          return false;
+        }
+
+        // WebKit has a nice bug where it clones the paste bin if you paste from for example notepad
+        // so we need to force plain text mode in this case
+        if (pasteBinElm.firstChild && (<Element>pasteBinElm.firstChild).id === 'mcepastebin') {
+            return false;
+        }
+
+        var pasteBinHtml = pasteBinElm.innerHTML;
+
+        // If paste bin is empty try using plain text mode
+        // since that is better than nothing right
+        if (!pasteBinHtml || pasteBinHtml === this.pasteBinDefaultContent) {
+            return false;
+        }
+
+        return pasteBinHtml;
+    }
+
+    insertHTMLCommand(html) {
+        var selection, range, el, fragment, node, lastNode, toReplace,
+            res = false,
+            ecArgs = ['insertHTML', false, html.innerHTML];
+
+        /* Edge's implementation of insertHTML is just buggy right now:
+         * - Doesn't allow leading white space at the beginning of an element
+         * - Found a case when a <font size="2"> tag was inserted when calling alignCenter inside a blockquote
+         *
+         * There are likely other bugs, these are just the ones we found so far.
+         * For now, let's just use the same fallback we did for IE
+         */
+        if (!((/Edge\/\d+/).exec(navigator.userAgent) !== null) && document.queryCommandSupported('insertHTML')) {
+            try {
+                return document.execCommand.apply(document, ecArgs);
+            } catch (ignore) {}
+        }
+
+        selection = document.getSelection();
+        if (selection.rangeCount) {
+            range = selection.getRangeAt(0);
+            toReplace = range.commonAncestorContainer;
+
+            // https://github.com/yabwe/medium-editor/issues/748
+            // If the selection is an empty editor element, create a temporary text node inside of the editor
+            // and select it so that we don't delete the editor element
+            if (this.isMediumEditorElement(toReplace) && !toReplace.firstChild) {
+                range.selectNode(toReplace.appendChild(document.createTextNode('')));
+            } else if ((toReplace.nodeType === 3 && range.startOffset === 0 && range.endOffset === toReplace.nodeValue.length) ||
+                (toReplace.nodeType !== 3 && toReplace.innerHTML === range.toString())
+            ) {
+                // Ensure range covers maximum amount of nodes as possible
+                // By moving up the DOM and selecting ancestors whose only child is the range
+                while (!this.isMediumEditorElement(toReplace) &&
+                toReplace.parentNode &&
+                toReplace.parentNode.childNodes.length === 1 &&
+                !this.isMediumEditorElement(toReplace.parentNode)) {
+                    toReplace = toReplace.parentNode;
+                }
+                range.selectNode(toReplace);
+            }
+            range.deleteContents();
+
+            el = document.createElement('div');
+            el.innerHTML = html.innerHTML;
+            fragment = document.createDocumentFragment();
+            while (el.firstChild) {
+                node = el.firstChild;
+                lastNode = fragment.appendChild(node);
+            }
+            range.insertNode(fragment);
+
+            // Preserve the selection:
+            if (lastNode) {
+                range = range.cloneRange();
+                range.setStartAfter(lastNode);
+                range.collapse(true);
+                this.selectRange(range)
+            }
+            res = true;
+        }
+
+        // https://github.com/yabwe/medium-editor/issues/992
+        // If we're monitoring calls to execCommand, notify listeners as if a real call had happened
+        // if ((<any>document).execCommand.callListeners) {
+        //     (<any>document).execCommand.callListeners(ecArgs, res);
+        // }
+        return res;
+    }
+
+    isMediumEditorElement(element) {
+        return element && element.getAttribute && !!element.getAttribute('data-medium-editor-element');
+    }
+
+    // PasteBinDemoEnd
 
 }

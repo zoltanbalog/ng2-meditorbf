@@ -2267,7 +2267,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         if (pastedHTML) {
             event.preventDefault();
             this.removePasteBin();
-            this.doPaste(pastedHTML, pastedPlain, editable);
+            this.doPaste(event, pastedHTML, pastedPlain, editable);
 
             // The event handling code listens for paste on the editable element
             // in order to trigger the editablePaste event.  Since this paste event
@@ -2290,7 +2290,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
             this.removePasteBin();
 
             // Handle the paste with the html from the paste bin
-            this.doPaste(pastedHTML, pastedPlain, editable);
+            this.doPaste(event, pastedHTML, pastedPlain, editable);
 
             // The event handling code listens for paste on the editable element
             // in order to trigger the editablePaste event.  Since this paste event
@@ -2319,7 +2319,7 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         }
     }
 
-    doPaste(pastedHTML, pastedPlain, editable) {
+    doPaste(event, pastedHTML, pastedPlain, editable) {
         var paragraphs,
             html = '',
             p;

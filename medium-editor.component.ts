@@ -2280,11 +2280,8 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         // We need to look at the paste bin, so do a setTimeout to let the paste
         // fall through into the paste bin
         setTimeout(function () {
-            // Only look for HTML if we're in cleanPastedHTML mode
-            if (this.cleanPastedHTML) {
-                // If clipboard didn't have HTML, try the paste bin
-                pastedHTML = this.getPasteBinHtml();
-            }
+            // If clipboard didn't have HTML, try the paste bin
+            pastedHTML = this.getPasteBinHtml();
 
             // If we needed the paste bin, we're done with it now, remove it
             this.removePasteBin();

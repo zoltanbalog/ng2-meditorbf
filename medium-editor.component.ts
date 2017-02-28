@@ -126,6 +126,14 @@ export class MediumEditorComponent implements ControlValueAccessor, OnInit, OnDe
         }
     }
 
+    @Input()
+    set featuredImageInitId(id) {
+        if (id) {
+            console.log(id);
+            this.featuredImage = id;
+        }
+    }
+
     // Triggering events
     @Output() changeEvent = new EventEmitter<any>();
     @Output() focusEvent = new EventEmitter<any>();
